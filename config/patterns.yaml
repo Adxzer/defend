@@ -1,0 +1,14 @@
+patterns:
+  - name: instruction_override_basic
+    category: instruction_override
+    regex: "(?i)ignore (all )?(previous|prior) instructions"
+    weight: 0.7
+  - name: system_prompt_extraction
+    category: system_prompt_extraction
+    regex: "(?i)(reveal|show|print).*(system prompt|hidden instructions)"
+    weight: 0.8
+  - name: roleplay_jailbreak
+    category: roleplay_jailbreak
+    regex: "(?i)you are now (instructed|allowed) to ignore.*safety"
+    weight: 0.9
+
