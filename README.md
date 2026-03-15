@@ -1,3 +1,8 @@
+![License](https://img.shields.io/badge/license-Apache--2.0-blue)
+![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![Languages](https://img.shields.io/badge/languages-30%2B-green)
+![Docker](https://img.shields.io/badge/docker-ready-blue)
+
 ## Defend API Microservice
 
 Defend API is a standalone, open-source HTTP microservice implementing a six-layer safety pipeline:
@@ -7,9 +12,17 @@ Defend API is a standalone, open-source HTTP microservice implementing a six-lay
 - **L3**: Regex and heuristic scoring from a YAML pattern library
 - **L4**: Perplexity-based filter 
 - **L5**: Multi-turn session accumulation backed by Redis
-- **L6**: Final semantic classifier using the `Adaxer/defend` Qwen2.5-based model
+- **L6**: Final semantic classifier using the `Adaxer/defend` checkpoint (trained on [Qwen2.5-0.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct))
 
 The goal is a reusable guardrail service that can sit in front of any LLM stack.
+
+### Why Defend?
+
+LLMs are vulnerable to prompt injection and jailbreaking in many languages, but most guardrails are English-only. Defend uses a multilingual pipeline (including a classifier trained on [Qwen2.5-0.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct)) so you can protect your stack across the languages your users speak.
+
+### Supported Languages
+
+The semantic classifier is trained on [Qwen2.5-0.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct), which supports **29+ languages**, including Chinese, English, French, Spanish, Portuguese, German, Italian, Russian, Japanese, Korean, Vietnamese, Thai, Arabic, and more.
 
 ### Quick start
 
