@@ -53,11 +53,16 @@ class DefendQwenClassifier:
         for window_ids in windows:
             outputs = self._model(input_ids=window_ids)
             logits = outputs.logits.detach().numpy()
-            # Assume binary classification, index 1 is "injection".
-            probs = np.exp(logits) / np.exp(logits).sum(axis=-1, keepdims=True)
+            # Stable softmax; assume binary, index 1 is "injection"
+            max_logits = logits.max(axis=-1, keepdims=True)
+            exp_logits = np.exp(logits - max_logits)
+            probs = exp_logits / exp_logits.sum(axis=-1, keepdims=True)
             inj_prob = float(probs[..., 1].max())
-            max_prob = max(max_prob, inj_prob)
+            if np.isfinite(inj_prob):
+                max_prob = max(max_prob, inj_prob)
 
+        # Ensure probability is finite and in [0, 1] for JSON
+        max_prob = max(0.0, min(1.0, max_prob)) if np.isfinite(max_prob) else 0.0
         is_injection = max_prob >= 0.5
         return DefendOutput(is_injection=is_injection, probability=max_prob)
 

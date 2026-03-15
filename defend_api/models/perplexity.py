@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -31,19 +32,33 @@ class PerplexityScorer:
 
     def score(self, text: str) -> PerplexityOutput:
         # Minimal perplexity proxy using negative log-likelihood over tokens.
-        encoded = self._tokenizer(text, return_tensors="pt")
-        with np.errstate(over="ignore"):
+        # Truncate to model max length (e.g. GPT-2 has 1024) to avoid IndexError on long input.
+        max_length = getattr(self._model.config, "n_positions", 1024)
+        encoded = self._tokenizer(
+            text,
+            return_tensors="pt",
+            truncation=True,
+            max_length=max_length,
+        )
+        with np.errstate(over="ignore", invalid="ignore"):
             outputs = self._model(**encoded)
             logits = outputs.logits  # [batch, seq, vocab]
             shift_logits = logits[:, :-1, :].detach().numpy()
             shift_labels = encoded["input_ids"][:, 1:].detach().numpy()
 
-            log_probs = shift_logits - np.log(np.exp(shift_logits).sum(axis=-1, keepdims=True))
+            # Numerically stable log-softmax: subtract max before exp to avoid overflow
+            max_logits = shift_logits.max(axis=-1, keepdims=True)
+            log_sum_exp = np.log(np.exp(shift_logits - max_logits).sum(axis=-1, keepdims=True)) + max_logits
+            log_probs = shift_logits - log_sum_exp
             token_log_probs = np.take_along_axis(
                 log_probs, shift_labels[..., None], axis=-1
             ).squeeze(-1)
             nll = -token_log_probs
-            mean_nll = float(nll.mean())
+            mean_nll = float(np.nanmean(nll))
+
+        # JSON does not allow nan/inf; ensure we always return a finite value
+        if not math.isfinite(mean_nll):
+            mean_nll = 0.0
 
         return PerplexityOutput(value=mean_nll)
 
