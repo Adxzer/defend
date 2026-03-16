@@ -1,4 +1,4 @@
-# DEFEND
+# Defend
 
 **The guardrail layer your LLM stack is missing.**
 
@@ -6,7 +6,7 @@
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![Docker](https://img.shields.io/badge/docker-ready-blue)
 
-Most LLM security stops at the input. DEFEND guards both directions - wrapping your existing LLM call with session-aware input and output evaluation, without ever touching the LLM call itself.
+Most LLM security stops at the input. Defend guards both directions - wrapping your existing LLM call with session-aware input and output evaluation, without ever touching the LLM call itself.
 ```python
 guard = defend.Client(api_key="...", provider="claude", modules=["injection", "pii"])
 
@@ -21,7 +21,7 @@ if result.blocked:
     return result.error_response()
 ```
 
-That's the whole integration. DEFEND never makes the LLM call — you own that.
+That's the whole integration. Defend never makes the LLM call — you own that.
 
 ---
 
@@ -79,7 +79,6 @@ guards:
 |---|---|
 | `POST /guard/input` | Evaluate user input, return verdict + `session_id` |
 | `POST /guard/output` | Evaluate LLM response, optionally with input context |
-| `POST /classify` | Legacy single-call classification endpoint |
 | `GET /health` | Health check |
 | `GET /ready` | Readiness check (models + Redis) |
 | `GET /metrics` | Prometheus metrics |
