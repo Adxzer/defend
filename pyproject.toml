@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "defend-api"
 version = "0.1.0"
-description = "Standalone Defend prompt-injection classifier microservice with a six-layer safety pipeline."
+description = "Guardrail service for LLM apps."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "Apache-2.0" }
