@@ -80,9 +80,10 @@ jobs:
       - name: Install test dependencies and API
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-asyncio httpx uvicorn defend-api \
+          pip install pytest pytest-asyncio httpx uvicorn \
             pydantic pydantic-settings pyyaml fastapi numpy anthropic openai transformers \
-            prometheus-fastapi-instrumentator sentence-transformers ftfy
+            prometheus-fastapi-instrumentator sentence-transformers ftfy bleach
+          pip install -e .
 
       - name: Start API
         run: |
