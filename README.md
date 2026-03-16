@@ -72,8 +72,8 @@ Every request passes through a multi-step pipeline (normalization, heuristics, s
 
 You choose the semantic provider:
 
-- `**defend**`: built-in Qwen2.5 classifier. Free, fast, binary output. Ideal as an always-on gate for obvious attacks.
-- `**claude` / `openai**`: LLM-backed evaluation with calibrated scores, natural language reasoning, and composable guard modules. Required for output guarding.
+- `defend`: built-in Qwen2.5 classifier. Free, fast, binary output. Ideal as an always-on gate for obvious attacks.
+- `claude` / `openai`: LLM-backed evaluation with calibrated scores, natural language reasoning, and composable guard modules. Required for output guarding.
 
 Typical pattern:
 
