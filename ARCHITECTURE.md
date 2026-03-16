@@ -2,7 +2,7 @@
 
 Your LLM trusts everything. DEFEND doesn't.
 
-DEFEND is a FastAPI microservice that wraps a six-layer safety pipeline and exposes a session-scoped input/output guard API. Every request is evaluated before it reaches your LLM. Every response is evaluated before it reaches your user. Your LLM call is never touched.
+DEFEND is a FastAPI microservice that wraps a six-layer safety pipeline and exposes a session-scoped input/output guard API. Every request is evaluated before it reaches your LLM. Every response is evaluated before it reaches your user.
 
 ---
 
@@ -16,7 +16,7 @@ All requests pass through L1–L5 unconditionally, then reach the provider layer
 | L2 | Intent fast-pass | Lightweight embedding model - obvious benign inputs exit early |
 | L3 | Regex heuristics | Pattern scoring from `defend_api.patterns.DEFAULT_PATTERNS` (code-defined regexes) |
 | L4 | Perplexity filter | GPT-2-style LM flags anomalous or machine-generated payloads |
-| L5 | Session accumulator | Redis-backed rolling risk score across conversation turns |
+| L5 | Session accumulator | In-memory rolling risk score across conversation turns (per-process, non-durable) |
 | L6 | Provider layer | Final semantic decision - defend, claude, or openai |
 
 Entry point: `defend_api.pipeline.orchestrator.run_pipeline(text, session_id)`. Returns an `OrchestratorResult` with `is_injection`, `final_action`, per-layer `LayerDiagnostics`, and provider metadata.
@@ -121,19 +121,19 @@ Modules compose additively - each contributes a `system_prompt()` fragment appen
 
 ## Guard sessions
 
-`/guard/input` and `/guard/output` share context through a Redis-backed session store (`defend_api.guard_session.GuardSessionStore`).
+`/guard/input` and `/guard/output` share context through an in-memory session store (`defend_api.guard_session.GuardSessionStore`).
 
 **On `/guard/input`:**
 - Runs the full L1–L6 pipeline for input evaluation.
-- Saves `{ text, provider, score }` to Redis under `guard:session:{session_id}` with a configurable TTL (default 300s).
+- Saves `{ text, provider, score }` in memory under `session_id` with a configurable TTL (default 300s).
 - Returns a `GuardResult` with `direction: "input"` and the `session_id`.
 
 **On `/guard/output`:**
-- Looks up input context from Redis using `session_id` (if provided).
+- Looks up input context from the in-memory store using `session_id` (if provided).
 - Runs output evaluation using an LLM provider and output modules.
 - Returns a `GuardResult` with `direction: "output"` and `context: "session"` when input context was available, `"none"` when not.
 
-Without a `session_id`, output evaluation is stateless - it still works, but the LLM provider has no knowledge of what was asked.
+Without a `session_id`, output evaluation is stateless - it still works, but the LLM provider has no knowledge of what was asked. Session state is per-process and non-durable; restarts or multiple processes will not share this context.
 
 ---
 

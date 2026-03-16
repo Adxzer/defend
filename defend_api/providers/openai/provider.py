@@ -8,7 +8,7 @@ from openai import APIStatusError, OpenAI
 
 from ...config import get_settings
 from ..base import BaseProvider, ProviderResult, ProviderUnavailableError
-from ..modules.base import BaseModule
+from ...modules.base import BaseModule
 
 
 EVAL_SYSTEM_PROMPT = """
@@ -40,7 +40,7 @@ class OpenAIProvider(BaseProvider):
 
     def __init__(self) -> None:
         settings = get_settings()
-        self._client = OpenAI()
+        self._client: Optional[OpenAI] = None
         # Model choice can be made configurable later; hard-code for now.
         self._model = "gpt-4.1-mini"
         self._api_key_env = "OPENAI_API_KEY"
@@ -59,6 +59,9 @@ class OpenAIProvider(BaseProvider):
             module_instructions = "\n\n".join(fragments)
 
         try:
+            if self._client is None:
+                self._client = OpenAI()
+
             response = self._client.chat.completions.create(
                 model=self._model,
                 response_format={"type": "json_object"},

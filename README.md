@@ -21,8 +21,6 @@ if result.blocked:
     return result.error_response()
 ```
 
-That's the whole integration. Defend never makes the LLM call - you own that.
-
 ---
 
 ## How it works
@@ -61,7 +59,7 @@ cp .env.example .env           # add your API keys
 uvicorn defend_api.main:app --host 0.0.0.0 --port 8000
 ```
 
-Configure providers and modules in `defend.config.yaml`. Redis is required for session state.
+Configure providers and modules in `defend.config.yaml`. Session state is stored in-memory per process.
 ```yaml
 guards:
   input:
@@ -80,7 +78,7 @@ guards:
 | `POST /guard/input` | Evaluate user input, return verdict + `session_id` |
 | `POST /guard/output` | Evaluate LLM response, optionally with input context |
 | `GET /health` | Health check |
-| `GET /ready` | Readiness check (models + Redis) |
+| `GET /ready` | Readiness check (models + in-memory session layer) |
 | `GET /metrics` | Prometheus metrics |
 
 ---

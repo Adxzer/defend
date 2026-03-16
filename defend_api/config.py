@@ -14,9 +14,6 @@ class Settings(BaseSettings):
     DEFEND_API_HOST: str = "0.0.0.0"
     DEFEND_API_PORT: int = 8000
 
-    # Redis
-    REDIS_URL: str = "redis://localhost:6379/0"
-
     # Models
     INTENT_MODEL_ID: str = "sentence-transformers/all-MiniLM-L6-v2"
     PERPLEXITY_MODEL_ID: str = "gpt2"

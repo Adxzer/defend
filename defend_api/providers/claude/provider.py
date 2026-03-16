@@ -8,7 +8,7 @@ from anthropic import APIStatusError, Anthropic
 
 from ...config import get_settings
 from ..base import BaseProvider, ProviderResult, ProviderUnavailableError
-from ..modules.base import BaseModule
+from ...modules.base import BaseModule
 
 
 EVAL_SYSTEM_PROMPT = """
@@ -40,7 +40,7 @@ class ClaudeProvider(BaseProvider):
 
     def __init__(self) -> None:
         settings = get_settings()
-        self._client = Anthropic()
+        self._client: Optional[Anthropic] = None
         # Model choice can be made configurable later; hard-code for now.
         self._model = "claude-3-5-sonnet-20241022"
         self._api_key_env = "ANTHROPIC_API_KEY"
@@ -60,6 +60,9 @@ class ClaudeProvider(BaseProvider):
             module_instructions = "\n\n".join(fragments)
 
         try:
+            if self._client is None:
+                self._client = Anthropic()
+
             response = self._client.messages.create(
                 model=self._model,
                 max_tokens=512,

@@ -30,13 +30,11 @@ async def ready() -> Response:
     except Exception as exc:  # pragma: no cover - defensive
         details["defend"] = f"error: {exc}"
 
-    # Check Redis / session accumulator (L5)
+    # Initialize session accumulator (L5, in-memory)
     try:
-        accumulator = await get_session_accumulator()
-        # Light touch to force connection on first use.
-        await accumulator._client.ping()  # type: ignore[attr-defined]
+        await get_session_accumulator()
     except Exception as exc:  # pragma: no cover - defensive
-        details["redis"] = f"error: {exc}"
+        details["session_accumulator"] = f"error: {exc}"
 
     if details:
         return Response(

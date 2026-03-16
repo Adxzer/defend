@@ -1,11 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
-
-import redis.asyncio as redis
-
-from ..config import get_settings
+from typing import Dict, List, Optional
 
 
 @dataclass
@@ -23,33 +19,16 @@ class SessionResult:
     turns: int
 
 
+# Per-process, non-durable session storage.
+_SESSION_STATE: Dict[str, SessionState] = {}
+
+
 class SessionAccumulator:
-    def __init__(self, client: redis.Redis) -> None:
-        self._client = client
-
-    @staticmethod
-    def _key(session_id: str) -> str:
-        return f"defend:session:{session_id}"
-
     async def load(self, session_id: str) -> Optional[SessionState]:
-        raw: Optional[Dict[str, Any]] = await self._client.hgetall(self._key(session_id))  # type: ignore[assignment]
-        if not raw:
-            return None
-
-        history = [float(x) for x in raw.get("history", "").split(",") if x]
-        peak_score = float(raw.get("peak_score", 0.0))
-        rolling_score = float(raw.get("rolling_score", 0.0))
-        return SessionState(history=history, peak_score=peak_score, rolling_score=rolling_score)
+        return _SESSION_STATE.get(session_id)
 
     async def store(self, session_id: str, state: SessionState) -> None:
-        await self._client.hset(
-            self._key(session_id),
-            mapping={
-                "history": ",".join(str(s) for s in state.history),
-                "peak_score": state.peak_score,
-                "rolling_score": state.rolling_score,
-            },
-        )
+        _SESSION_STATE[session_id] = state
 
     async def update(self, session_id: str, turn_score: float, threshold: float) -> SessionResult:
         existing = await self.load(session_id)
@@ -80,15 +59,12 @@ class SessionAccumulator:
         )
 
 
-_redis_client: Optional[redis.Redis] = None
 _accumulator: Optional[SessionAccumulator] = None
 
 
 async def get_session_accumulator() -> SessionAccumulator:
-    global _redis_client, _accumulator
+    global _accumulator
     if _accumulator is None:
-        settings = get_settings()
-        _redis_client = redis.from_url(settings.REDIS_URL)
-        _accumulator = SessionAccumulator(_redis_client)
+        _accumulator = SessionAccumulator()
     return _accumulator
 
