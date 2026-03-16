@@ -5,6 +5,7 @@ from functools import lru_cache
 from typing import List
 
 import numpy as np
+import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from ..config import get_settings
@@ -52,7 +53,13 @@ class DefendQwenClassifier:
         max_prob = 0.0
         for window_ids in windows:
             outputs = self._model(input_ids=window_ids)
-            logits = outputs.logits.detach().numpy()
+            # Ensure logits are in a NumPy-friendly float dtype (avoid bf16 issues).
+            logits = (
+                outputs.logits.to(dtype=torch.float32)
+                .detach()
+                .cpu()
+                .numpy()
+            )
             # Stable softmax; assume binary, index 1 is "injection"
             max_logits = logits.max(axis=-1, keepdims=True)
             exp_logits = np.exp(logits - max_logits)
