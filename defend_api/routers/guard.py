@@ -46,6 +46,10 @@ def _format_output_eval_text(output_text: str, input_context: Optional[Dict[str,
 
 @router.post("/input", response_model=GuardResult)
 async def guard_input(request: GuardInputRequest) -> JSONResponse:
+    # Reject excessively large payloads early to avoid timeouts and unnecessary downstream work.
+    if len(request.text) >= 20_000:
+        raise HTTPException(status_code=413, detail="Input text too large")
+
     from ..pipeline.orchestrator import run_pipeline
 
     session_id = request.session_id or f"def-{uuid.uuid4().hex[:8]}"

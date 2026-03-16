@@ -4,6 +4,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from .config import get_defend_config, get_settings
 from .logging import configure_logging, get_logger
 from .models.defend_qwen import get_defend_classifier
+from .models.intent import get_intent_classifier
 from .models.perplexity import get_perplexity_scorer
 from .providers.orchestrator import get_provider_orchestrator
 from .routers import guard, health
@@ -35,6 +36,9 @@ def create_app() -> FastAPI:
 
         # Eagerly load core models/providers to avoid slow first request.
         defend_config = get_defend_config()
+
+        # Intent fast-pass model (L2) – eager load to avoid cold-start on first /guard/input.
+        get_intent_classifier()
 
         # Perplexity scorer (L4)
         get_perplexity_scorer()

@@ -1,13 +1,12 @@
 import pytest
-from pytest import mark
 
 from defend_api.pipeline.session_accumulator import get_session_accumulator
 from defend_api.guard_session import get_guard_session_store
 
 
-@mark.unit
+@pytest.mark.unit
 @pytest.mark.asyncio
-async def test_session_accumulator_in_memory():
+async def test_session_accumulator_in_memory_unit():
     acc = await get_session_accumulator()
 
     session_id = "test-session"
@@ -19,9 +18,9 @@ async def test_session_accumulator_in_memory():
     assert 0.0 <= res2.session_score <= 1.0
 
 
-@mark.unit
+@pytest.mark.unit
 @pytest.mark.asyncio
-async def test_guard_session_store_in_memory():
+async def test_guard_session_store_in_memory_unit():
     store = await get_guard_session_store()
     session_id = "guard-session"
     context = {"text": "hello", "provider": "defend", "score": "0.4"}

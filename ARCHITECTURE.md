@@ -47,7 +47,7 @@ Internally, Defend runs each request through a multi-layer pipeline before the s
 | L5 | Session accumulator | Maintains a rolling risk score across conversation turns |
 | L6 | Provider layer | Makes the final semantic decision using `defend`, `claude`, or `openai` |
 
-All requests go through L1–L5 in order, then L6 decides whether to **pass**, **flag**, **block**, or suggest a retry.
+All requests go through L1-L5 in order, then L6 decides whether to **pass**, **flag**, **block**, or suggest a retry.
 
 Code entry point: `defend_api.pipeline.orchestrator.run_pipeline(text, session_id)`. It returns an `OrchestratorResult` containing the final action, per-layer diagnostics, and provider metadata.
 
@@ -154,7 +154,7 @@ Modules compose additively - each contributes a `system_prompt()` fragment appen
 `/guard/input` and `/guard/output` share context through an in-memory session store (`defend_api.guard_session.GuardSessionStore`).
 
 **On `/guard/input`:**
-- Runs the full L1–L6 pipeline for input evaluation.
+- Runs the full L1-L6 pipeline for input evaluation.
 - Saves `{ text, provider, score }` in memory under `session_id` with a configurable TTL (default 300s).
 - Returns a `GuardResult` with `direction: "input"` and the `session_id`.
 

@@ -1,5 +1,4 @@
 import pytest
-from pytest import mark
 
 from defend_api.modules import build_modules_from_specs, get_active_modules
 from defend_api.providers.base import ProviderUnavailableError
@@ -7,25 +6,25 @@ from defend_api.routers.guard import guard_output
 from defend_api.schemas import GuardAction, GuardOutputRequest, ProviderName
 
 
-@mark.integration
+@pytest.mark.integration
 @pytest.mark.asyncio
-async def test_output_modules_are_discoverable():
+async def test_output_modules_are_discoverable_integration():
     active = get_active_modules()
     assert "prompt_leak" in active
     assert "pii_output" in active
 
 
-@mark.integration
-def test_build_modules_from_specs_with_kwargs():
+@pytest.mark.integration
+def test_build_modules_from_specs_with_kwargs_integration():
     modules = build_modules_from_specs([{"topic_output": {"allowed_topics": ["billing"]}}])
     assert len(modules) == 1
     assert modules[0].name == "topic_output"
     assert '"billing"' in modules[0].system_prompt()
 
 
-@mark.integration
+@pytest.mark.integration
 @pytest.mark.asyncio
-async def test_guard_output_on_fail_retry_suggested(monkeypatch):
+async def test_guard_output_on_fail_retry_suggested_integration(monkeypatch):
     from defend_api import config as config_mod
 
     real = config_mod.get_defend_config()

@@ -4,9 +4,9 @@
 
 Defend is an open-source **LLM security** and **prompt injection defense** service. It wraps your existing LLM calls with session-aware input and output evaluation, without changing how you talk to your provider.
 
-![License](https://img.shields.io/badge/license-Apache--2.0-blue)
-![Python](https://img.shields.io/badge/python-3.12%2B-blue)
-![Docker](https://img.shields.io/badge/docker-ready-blue)
+License
+Python
+Docker
 
 ---
 
@@ -18,14 +18,6 @@ Most AI security focuses only on **what goes into** your model. Defend guards **
 - **Output guard**: blocks prompt leaks, PII leaks, and topic drift before it reaches your users.
 
 You keep your existing LLM stack (Claude, OpenAI, etc.). Defend adds an **AI security layer** in front of and behind it.
-
-### At a glance
-
-- **AI security for LLM apps**: focus on prompt injection defense, PII protection, and scope control.
-- **Six-layer safety pipeline**: normalization, heuristics, perplexity, sessions, and semantic evaluation.
-- **Pluggable providers**: built-in `defend` classifier, plus `claude` and `openai` for deep reasoning.
-- **Composable modules**: injection, PII, topic, prompt leak, and custom policies in plain language.
-- **Session-aware**: ties input and output together via a session store so output checks understand the conversation.
 
 ---
 
@@ -72,25 +64,16 @@ For a step-by-step guide (including raw HTTP examples), see `GETTING_STARTED.md`
 
 ## Core features
 
-### Six-layer AI security pipeline
+### Security pipeline
 
-Every request passes through a multi-layer pipeline before the final semantic decision:
-
-- **Normalization**: cleans and normalizes text.
-- **Intent fast-pass**: quickly exits obviously benign inputs.
-- **Regex heuristics**: pattern-based checks for high-risk content.
-- **Perplexity filter**: flags anomalous or machine-generated payloads.
-- **Session accumulator**: tracks rolling risk across the conversation.
-- **Provider layer**: `defend`, `claude`, or `openai` makes the final call.
-
-See `ARCHITECTURE.md` for a deeper explanation and diagrams.
+Every request passes through a multi-step pipeline (normalization, heuristics, session tracking, and semantic evaluation) before a final allow/block decision.
 
 ### Providers
 
 You choose the semantic provider:
 
-- **`defend`**: built-in Qwen2.5 classifier. Free, fast, binary output. Ideal as an always-on gate for obvious attacks.
-- **`claude` / `openai`**: LLM-backed evaluation with calibrated scores, natural language reasoning, and composable guard modules. Required for output guarding.
+- `**defend**`: built-in Qwen2.5 classifier. Free, fast, binary output. Ideal as an always-on gate for obvious attacks.
+- `**claude` / `openai**`: LLM-backed evaluation with calibrated scores, natural language reasoning, and composable guard modules. Required for output guarding.
 
 Typical pattern:
 
@@ -101,16 +84,18 @@ Typical pattern:
 
 Modules extend what the LLM provider looks for. You can stack as many as you need:
 
-| Module | Direction | Detects |
-|---|---|---|
-| `injection` | input | Instruction overrides, persona hijacking, jailbreaks, social engineering |
-| `pii` | input | PII submitted by users |
-| `pii_output` | output | PII leaking in model responses |
-| `topic` | input | Requests outside your defined scope |
-| `topic_output` | output | Responses drifting outside your defined scope |
-| `prompt_leak` | output | System prompt or internal instruction exposure |
-| `custom` | input | Anything – describe it in plain language |
-| `custom_output` | output | Anything – describe it in plain language |
+
+| Module          | Direction | Detects                                                                  |
+| --------------- | --------- | ------------------------------------------------------------------------ |
+| `injection`     | input     | Instruction overrides, persona hijacking, jailbreaks, social engineering |
+| `pii`           | input     | PII submitted by users                                                   |
+| `pii_output`    | output    | PII leaking in model responses                                           |
+| `topic`         | input     | Requests outside your defined scope                                      |
+| `topic_output`  | output    | Responses drifting outside your defined scope                            |
+| `prompt_leak`   | output    | System prompt or internal instruction exposure                           |
+| `custom`        | input     | Anything - describe it in plain language                                 |
+| `custom_output` | output    | Anything - describe it in plain language                                 |
+
 
 Configuration examples for these modules live in `CONFIGURATION.md`.
 
@@ -118,8 +103,8 @@ Configuration examples for these modules live in `CONFIGURATION.md`.
 
 ## Learn more
 
-- `GETTING_STARTED.md` – step-by-step guide to running and integrating Defend.
-- `CONFIGURATION.md` – full configuration reference and environment presets.
-- `ARCHITECTURE.md` – internal pipeline, providers, modules, and response schemas.
+- `GETTING_STARTED.md` - step-by-step guide to running and integrating Defend.
+- `CONFIGURATION.md` - full configuration reference and environment presets.
+- `ARCHITECTURE.md` - internal pipeline, providers, modules, and response schemas.
 
 Use Defend as the **AI security layer** in front of your LLM stack to catch prompt injection, PII leaks, and unsafe behavior before it reaches users or downstream systems.

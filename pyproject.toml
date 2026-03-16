@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "defend-api"
 version = "0.1.0"
-description = "Guardrail service for LLM apps."
+description = "AI security guardrails for LLM applications."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "Apache-2.0" }
@@ -16,5 +16,5 @@ dependencies = []
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["defend_api*"]
+include = ["defend_api*", "client*"]
 

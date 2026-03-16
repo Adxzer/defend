@@ -67,7 +67,7 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
     settings = get_settings()
     defend_config = get_defend_config()
 
-    # L1 – Normalization
+    # L1 - Normalization
     normalized: NormalizedText = normalize_text(text)
     norm_diag = NormalizationDiagnostics(
         raw=normalized.raw,
@@ -75,7 +75,7 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
         transformations=normalized.transformations,
     )
 
-    # L2 – Intent Fast-Pass
+    # L2 - Intent Fast-Pass
     intent_gate = run_intent_gate(normalized)
     intent_diag = IntentDiagnostics(
         label=intent_gate.output.label,
@@ -87,7 +87,7 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
         layers = LayerDiagnostics(normalization=norm_diag, intent=intent_diag)
         return OrchestratorResult(is_injection=False, final_action=FinalAction.PASS, layers=layers)
 
-    # L3 – Regex Heuristics
+    # L3 - Regex Heuristics
     regex_engine = get_regex_engine()
     regex_res = regex_engine.run(normalized)
     regex_matches = [
@@ -110,7 +110,7 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
         layers = LayerDiagnostics(normalization=norm_diag, intent=intent_diag, regex=regex_diag)
         return OrchestratorResult(is_injection=True, final_action=FinalAction.BLOCK, layers=layers)
 
-    # L4 – Perplexity Filter
+    # L4 - Perplexity Filter
     perplexity_res = run_perplexity_filter(normalized)
     perplexity_diag = PerplexityDiagnostics(
         value=perplexity_res.output.value,
@@ -126,7 +126,7 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
         )
         return OrchestratorResult(is_injection=True, final_action=FinalAction.BLOCK, layers=layers)
 
-    # L5 – Session Accumulation (mandatory when session_id present)
+    # L5 - Session Accumulation (mandatory when session_id present)
     session_diag: Optional[SessionDiagnostics] = None
     session_result: Optional[SessionResult] = None
     if session_id:
@@ -160,7 +160,7 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
             )
             return OrchestratorResult(is_injection=True, final_action=FinalAction.BLOCK, layers=layers)
 
-    # L6 – Provider orchestrator
+    # L6 - Provider orchestrator
     provider_orchestrator = get_provider_orchestrator()
     provider_result = await provider_orchestrator.evaluate(normalized.normalized, session_id=session_id)
     is_provider_block = provider_result.action is GuardAction.BLOCK

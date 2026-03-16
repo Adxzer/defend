@@ -332,3 +332,17 @@ guards:
 
 For full details on how these settings map to runtime behavior, see `ARCHITECTURE.md`.
 
+---
+
+## 9. Environment variables for testing and CI
+
+When running automated tests locally or in CI (GitHub Actions), a few additional environment variables are important:
+
+- `DEFEND_ENV`:
+  - When set to `test`, the API should run in a mode suitable for automated tests (e.g. using mock or test providers, test keys, and avoiding real external side effects).
+- `API_BASE_URL`:
+  - Used by the test suite (especially API tests) to know where the running API is reachable.
+  - In CI this is typically `http://127.0.0.1:8000`.
+
+For local development, copy `.env.example` to `.env` and set appropriate values. In CI, configure any real secrets via the GitHub repository **Secrets and variables** settings rather than committing them to the repo.
+

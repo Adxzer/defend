@@ -151,7 +151,40 @@ This mirrors the HTTP flow using the same underlying guardrail logic.
 
 ---
 
-## 6. Next steps
+## 6. Running tests and CI locally
+
+To mirror what GitHub Actions runs in CI:
+
+- **Run all tests**:
+
+```bash
+pytest
+```
+
+- **Run only unit and integration tests** (what the main tests job runs):
+
+```bash
+pytest -m "unit or integration"
+```
+
+- **Run only API (HTTP-level) tests**:
+
+```bash
+export API_BASE_URL="http://127.0.0.1:8000"
+pytest -m api
+```
+
+The CI pipeline on GitHub Actions runs three jobs:
+
+- `lint`: runs Ruff on `defend_api`, `client`, and `tests`.
+- `tests`: runs `pytest -m "unit or integration"` with coverage.
+- `api-tests`: starts the FastAPI app and runs `pytest -m api` against it.
+
+All three jobs must pass for a pull request into `main` to be merged.
+
+---
+
+## 7. Next steps
 
 - For a deeper view of **how the pipeline works under the hood**, read `ARCHITECTURE.md`.
 - For **detailed configuration examples** (modules, thresholds, CI usage), see `CONFIGURATION.md`.
