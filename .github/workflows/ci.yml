@@ -47,7 +47,8 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pytest pytest-asyncio pytest-cov httpx \
-            pydantic pydantic-settings pyyaml fastapi numpy anthropic openai transformers
+            pydantic pydantic-settings pyyaml fastapi numpy anthropic openai transformers \
+            prometheus-fastapi-instrumentator
           pip install -e .
 
       - name: Run unit and integration tests with coverage
@@ -80,7 +81,8 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pytest pytest-asyncio httpx uvicorn defend-api \
-            pydantic pydantic-settings pyyaml fastapi numpy anthropic openai transformers
+            pydantic pydantic-settings pyyaml fastapi numpy anthropic openai transformers \
+            prometheus-fastapi-instrumentator
 
       - name: Start API
         run: |
