@@ -4,6 +4,7 @@ import json
 import time
 from typing import Optional
 
+import anyio
 from anthropic import APIStatusError, Anthropic
 
 from ...config import get_settings
@@ -51,7 +52,7 @@ class ClaudeProvider(BaseProvider):
         session_id: Optional[str] = None,  # noqa: ARG002
         modules: list[BaseModule] | None = None,
     ) -> ProviderResult:
-        # Note: anthropic SDK is sync; run in thread if this becomes a bottleneck.
+        # Note: anthropic SDK is sync; run in a worker thread to avoid blocking the event loop.
         start = time.perf_counter()
 
         module_instructions = ""
@@ -63,18 +64,21 @@ class ClaudeProvider(BaseProvider):
             if self._client is None:
                 self._client = Anthropic()
 
-            response = self._client.messages.create(
-                model=self._model,
-                max_tokens=512,
-                system=EVAL_SYSTEM_PROMPT.format(module_instructions=module_instructions),
-                messages=[
-                    {
-                        "role": "user",
-                        "content": text,
-                    }
-                ],
-                # Use tool-like structured output if available; otherwise rely on JSON-only instructions.
-            )
+            def _call_claude() -> object:
+                return self._client.messages.create(
+                    model=self._model,
+                    max_tokens=512,
+                    system=EVAL_SYSTEM_PROMPT.format(module_instructions=module_instructions),
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": text,
+                        }
+                    ],
+                    # Use tool-like structured output if available; otherwise rely on JSON-only instructions.
+                )
+
+            response = await anyio.to_thread.run_sync(_call_claude)
         except APIStatusError as exc:
             raise ProviderUnavailableError(f"claude API error: {exc}") from exc
         except Exception as exc:  # pragma: no cover - defensive

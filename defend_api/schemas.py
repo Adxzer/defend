@@ -1,7 +1,25 @@
 from enum import Enum
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
+
+
+class ProviderName(str, Enum):
+    DEFEND = "defend"
+    CLAUDE = "claude"
+    OPENAI = "openai"
+
+
+class GuardAction(str, Enum):
+    PASS = "pass"
+    FLAG = "flag"
+    BLOCK = "block"
+    RETRY_SUGGESTED = "retry_suggested"
+
+
+class GuardContext(str, Enum):
+    SESSION = "session"
+    NONE = "none"
 
 
 class FinalAction(str, Enum):
@@ -117,19 +135,19 @@ class GuardOutputRequest(BaseModel):
 
 
 class GuardResult(BaseModel):
-    action: Literal["pass", "flag", "block", "retry_suggested"]
+    action: GuardAction
     session_id: str
     decided_by: str
-    direction: Literal["input", "output"]
+    direction: str
     score: Optional[float] = None
     reason: Optional[str] = None
     modules_triggered: List[str] = Field(default_factory=list)
-    context: Literal["session", "none"] = "none"
+    context: GuardContext = GuardContext.NONE
     latency_ms: int = 0
 
     @property
     def blocked(self) -> bool:
-        return self.action == "block"
+        return self.action is GuardAction.BLOCK
 
     def error_response(self, message: Optional[str] = None) -> Dict[str, Any]:
         return {

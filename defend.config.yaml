@@ -98,7 +98,7 @@ thresholds:
 #       - "retry_suggested" : action is "retry_suggested" (client may retry)
 #
 # guards.session_ttl_seconds:
-#   - How long input context from /guard/input is kept in Redis and usable
+#   - How long input context from /guard/input is kept in memory and usable
 #     by /guard/output. Short TTL by design (non-persistent).
 #######################################################################
 guards:

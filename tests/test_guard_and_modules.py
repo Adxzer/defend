@@ -3,7 +3,7 @@ import pytest
 from defend_api.modules import build_modules_from_specs, get_active_modules
 from defend_api.providers.base import ProviderUnavailableError
 from defend_api.routers.guard import guard_output
-from defend_api.schemas import GuardOutputRequest
+from defend_api.schemas import GuardAction, GuardOutputRequest, ProviderName
 
 
 @pytest.mark.asyncio
@@ -27,15 +27,15 @@ async def test_guard_output_on_fail_retry_suggested(monkeypatch):
 
     real = config_mod.get_defend_config()
     patched = real.model_copy(deep=True)
-    patched.guards.output.on_fail = "retry_suggested"
-    patched.guards.output.provider = "claude"
+    patched.guards.output.on_fail = GuardAction.RETRY_SUGGESTED
+    patched.guards.output.provider = ProviderName.CLAUDE
     patched.guards.output.modules = ["prompt_leak"]
 
     monkeypatch.setattr(config_mod, "get_defend_config", lambda: patched)
 
     class FailingProvider:
         supports_modules = True
-        name = "claude"
+        name = ProviderName.CLAUDE
 
         async def evaluate(self, text, session_id=None, modules=None):
             raise ProviderUnavailableError("boom")

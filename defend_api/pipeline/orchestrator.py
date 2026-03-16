@@ -14,12 +14,14 @@ from ..pipeline.session_accumulator import SessionResult, get_session_accumulato
 from ..schemas import (
     DefendDiagnostics,
     FinalAction,
+    GuardAction,
     IntentDecision,
     IntentDiagnostics,
     LayerDiagnostics,
     NormalizationDiagnostics,
     PerplexityDecision,
     PerplexityDiagnostics,
+    ProviderName,
     RegexDecision,
     RegexDiagnostics,
     RegexMatch,
@@ -54,9 +56,9 @@ _regex_engine: Optional[RegexHeuristics] = None
 _logger = get_logger(__name__)
 
 
-def get_regex_engine() -> RegexHeuristics:
+def get_regex_engine(reset: bool = False) -> RegexHeuristics:
     global _regex_engine
-    if _regex_engine is None:
+    if reset or _regex_engine is None:
         _regex_engine = _build_regex_engine()
     return _regex_engine
 
@@ -161,8 +163,8 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
     # L6 – Provider orchestrator
     provider_orchestrator = get_provider_orchestrator()
     provider_result = await provider_orchestrator.evaluate(normalized.normalized, session_id=session_id)
-    is_provider_block = provider_result.action == "block"
-    is_provider_flag = provider_result.action == "flag"
+    is_provider_block = provider_result.action is GuardAction.BLOCK
+    is_provider_flag = provider_result.action is GuardAction.FLAG
 
     session_blocked = session_result.decision == "BLOCK" if session_result else False
     is_injection = is_provider_block or session_blocked
@@ -176,7 +178,7 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
 
     defend_diag: Optional[DefendDiagnostics] = None
     # Only compute defend model diagnostics when defend is configured in the provider chain.
-    if defend_config.provider.primary == "defend" or defend_config.provider.fallback == "defend":
+    if defend_config.provider.primary is ProviderName.DEFEND or defend_config.provider.fallback is ProviderName.DEFEND:
         # Preserve existing defend diagnostics based on the underlying model behaviour.
         from ..models.defend_qwen import get_defend_classifier  # local import to avoid cycles
 
@@ -200,10 +202,10 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
         is_injection=is_injection,
         final_action=final_action,
         layers=layers,
-        decided_by=provider_result.provider,
-        score=provider_result.score if provider_result.provider != "defend" else None,
-        reason=provider_result.reason if provider_result.provider != "defend" else None,
-        modules_triggered=provider_result.modules_triggered if provider_result.provider != "defend" else [],
+        decided_by=provider_result.provider.value if isinstance(provider_result.provider, ProviderName) else provider_result.provider,
+        score=provider_result.score if provider_result.provider is not ProviderName.DEFEND else None,
+        reason=provider_result.reason if provider_result.provider is not ProviderName.DEFEND else None,
+        modules_triggered=provider_result.modules_triggered if provider_result.provider is not ProviderName.DEFEND else [],
         defend_signal=None,  # populated at response layer for both-active if needed
         latency_ms=provider_result.latency_ms,
     )

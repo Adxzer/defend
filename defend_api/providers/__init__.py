@@ -5,9 +5,10 @@ import pkgutil
 from pathlib import Path
 from typing import Dict
 
+from ..schemas import ProviderName
 from .base import BaseProvider
 
-_registry: Dict[str, BaseProvider] = {}
+_registry: Dict[ProviderName, BaseProvider] = {}
 _loaded: bool = False
 
 
@@ -44,17 +45,17 @@ def load_providers() -> None:
     _loaded = True
 
 
-def get_provider(name: str) -> BaseProvider:
+def get_provider(name: ProviderName) -> BaseProvider:
     if not _loaded:
         load_providers()
 
     if name not in _registry:
-        available = ", ".join(sorted(_registry.keys()))
-        raise ValueError(f"Unknown provider '{name}'. Available providers: {available}")
+        available = ", ".join(sorted(p.value for p in _registry.keys()))
+        raise ValueError(f"Unknown provider '{name.value}'. Available providers: {available}")
     return _registry[name]
 
 
-def get_all_providers() -> Dict[str, BaseProvider]:
+def get_all_providers() -> Dict[ProviderName, BaseProvider]:
     if not _loaded:
         load_providers()
     return dict(_registry)

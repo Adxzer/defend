@@ -6,6 +6,8 @@ import yaml
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from .schemas import GuardAction, GuardContext, ProviderName
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
@@ -28,25 +30,25 @@ class Settings(BaseSettings):
 
 
 class ProviderConfig(BaseModel):
-    primary: str
-    fallback: Optional[str] = None
+    primary: ProviderName
+    fallback: Optional[ProviderName] = None
 
     @field_validator("primary")
     @classmethod
-    def validate_primary(cls, v: str) -> str:
-        if v not in {"defend", "claude", "openai"}:
+    def validate_primary(cls, v: ProviderName) -> ProviderName:
+        if v not in {ProviderName.DEFEND, ProviderName.CLAUDE, ProviderName.OPENAI}:
             raise ValueError("provider.primary must be one of 'defend', 'claude', or 'openai'")
         return v
 
     @field_validator("fallback")
     @classmethod
-    def validate_fallback(cls, v: Optional[str], info: Any) -> Optional[str]:
+    def validate_fallback(cls, v: Optional[ProviderName], info: Any) -> Optional[ProviderName]:
         if v is None:
             return v
-        if v != "defend":
+        if v is not ProviderName.DEFEND:
             raise ValueError("provider.fallback, when set, must be 'defend'")
         primary = info.data.get("primary")
-        if primary not in {"claude", "openai"}:
+        if primary not in {ProviderName.CLAUDE, ProviderName.OPENAI}:
             raise ValueError("provider.fallback is only valid when provider.primary is 'claude' or 'openai'")
         return v
 
@@ -85,26 +87,26 @@ class ThresholdsConfig(BaseModel):
 
 
 class GuardsInputConfig(BaseModel):
-    provider: str = "defend"
+    provider: ProviderName = ProviderName.DEFEND
     modules: List[Any] = Field(default_factory=list)
 
 
 class GuardsOutputConfig(BaseModel):
-    provider: str = "claude"
+    provider: ProviderName = ProviderName.CLAUDE
     modules: List[Any] = Field(default_factory=list)
-    on_fail: str = "block"  # block | flag | retry_suggested
+    on_fail: GuardAction = GuardAction.BLOCK  # block | flag | retry_suggested
 
     @field_validator("provider")
     @classmethod
-    def validate_output_provider(cls, v: str) -> str:
-        if v not in {"claude", "openai"}:
-            raise ValueError("guards.output.provider must be 'claude' or 'openai'")
+    def validate_output_provider(cls, v: ProviderName) -> ProviderName:
+        if v not in {ProviderName.CLAUDE, ProviderName.OPENAI}:
+            raise ValueError("guards.output.provider must be 'claude', or 'openai'")
         return v
 
     @field_validator("on_fail")
     @classmethod
-    def validate_on_fail(cls, v: str) -> str:
-        if v not in {"block", "flag", "retry_suggested"}:
+    def validate_on_fail(cls, v: GuardAction) -> GuardAction:
+        if v not in {GuardAction.BLOCK, GuardAction.FLAG, GuardAction.RETRY_SUGGESTED}:
             raise ValueError("guards.output.on_fail must be 'block', 'flag', or 'retry_suggested'")
         return v
 

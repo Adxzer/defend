@@ -4,6 +4,7 @@ import json
 import time
 from typing import Optional
 
+import anyio
 from openai import APIStatusError, OpenAI
 
 from ...config import get_settings
@@ -62,15 +63,18 @@ class OpenAIProvider(BaseProvider):
             if self._client is None:
                 self._client = OpenAI()
 
-            response = self._client.chat.completions.create(
-                model=self._model,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": EVAL_SYSTEM_PROMPT.format(module_instructions=module_instructions)},
-                    {"role": "user", "content": text},
-                ],
-                max_tokens=512,
-            )
+            def _call_openai() -> object:
+                return self._client.chat.completions.create(
+                    model=self._model,
+                    response_format={"type": "json_object"},
+                    messages=[
+                        {"role": "system", "content": EVAL_SYSTEM_PROMPT.format(module_instructions=module_instructions)},
+                        {"role": "user", "content": text},
+                    ],
+                    max_tokens=512,
+                )
+
+            response = await anyio.to_thread.run_sync(_call_openai)
         except APIStatusError as exc:
             raise ProviderUnavailableError(f"openai API error: {exc}") from exc
         except Exception as exc:  # pragma: no cover - defensive

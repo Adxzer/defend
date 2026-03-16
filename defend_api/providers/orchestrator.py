@@ -4,6 +4,7 @@ from typing import Optional
 
 from ..config import get_defend_config, get_settings
 from ..modules import build_modules_from_specs
+from ..schemas import GuardAction, ProviderName
 from . import get_provider
 from .base import ProviderResult, ProviderUnavailableError
 
@@ -24,17 +25,17 @@ class ProviderOrchestrator:
         fallback = self._config.provider.fallback
 
         modules = []
-        if primary in {"claude", "openai"}:
+        if primary in {ProviderName.CLAUDE, ProviderName.OPENAI}:
             configured = build_modules_from_specs(self._config.modules or [])
             # Core provider-layer modules are input-oriented.
             modules = [m for m in configured if m.direction in ("input", "both")]
 
         # Both-active mode: defend as gate in front of LLM provider.
-        if fallback == "defend" and primary in {"claude", "openai"}:
-            defend = get_provider("defend")
+        if fallback is ProviderName.DEFEND and primary in {ProviderName.CLAUDE, ProviderName.OPENAI}:
+            defend = get_provider(ProviderName.DEFEND)
             defend_result = await defend.evaluate(text=text, session_id=session_id, modules=[])
 
-            if defend_result.action == "block":
+            if defend_result.action is GuardAction.BLOCK:
                 # Hard block from defend - do not call LLM provider.
                 return defend_result
 
@@ -54,9 +55,9 @@ class ProviderOrchestrator:
 _orchestrator: Optional[ProviderOrchestrator] = None
 
 
-def get_provider_orchestrator() -> ProviderOrchestrator:
+def get_provider_orchestrator(reset: bool = False) -> ProviderOrchestrator:
     global _orchestrator
-    if _orchestrator is None:
+    if reset or _orchestrator is None:
         _orchestrator = ProviderOrchestrator()
     return _orchestrator
 

@@ -12,7 +12,7 @@ from ..guard_session import get_guard_session_store
 from ..modules import build_modules_from_specs
 from ..providers import get_provider
 from ..providers.base import ProviderUnavailableError
-from ..schemas import GuardInputRequest, GuardOutputRequest, GuardResult
+from ..schemas import GuardAction, GuardContext, GuardInputRequest, GuardOutputRequest, GuardResult
 
 
 router = APIRouter(prefix="/guard", tags=["guard"])
@@ -28,13 +28,13 @@ def _sanitize_finite(obj: Any) -> Any:
     return obj
 
 
-def _map_final_action_to_guard_action(final_action: Any) -> str:
+def _map_final_action_to_guard_action(final_action: Any) -> GuardAction:
     value = getattr(final_action, "value", None)
     if value == "BLOCK":
-        return "block"
+        return GuardAction.BLOCK
     if value == "LOG":
-        return "flag"
-    return "pass"
+        return GuardAction.FLAG
+    return GuardAction.PASS
 
 
 def _format_output_eval_text(output_text: str, input_context: Optional[Dict[str, Any]]) -> str:
@@ -69,7 +69,7 @@ async def guard_input(request: GuardInputRequest) -> JSONResponse:
         score=pipeline_result.score,
         reason=pipeline_result.reason,
         modules_triggered=pipeline_result.modules_triggered or [],
-        context="none",
+        context=GuardContext.NONE,
         latency_ms=pipeline_result.latency_ms or 0,
     )
 
@@ -82,16 +82,16 @@ async def guard_output(request: GuardOutputRequest) -> JSONResponse:
     config = get_defend_config()
     store = await get_guard_session_store()
     input_context = None
-    context_flag: str = "none"
+    context_flag: GuardContext = GuardContext.NONE
 
     if request.session_id:
         input_context = await store.get_input_context(request.session_id)
         if input_context:
-            context_flag = "session"
+            context_flag = GuardContext.SESSION
 
     provider_name = config.guards.output.provider
     provider = get_provider(provider_name)
-    if provider_name == "defend" or not provider.supports_modules:
+    if provider_name.value == "defend" or not provider.supports_modules:
         raise HTTPException(status_code=400, detail="Output guarding requires an LLM provider (claude or openai).")
 
     modules = build_modules_from_specs(config.guards.output.modules or [])
@@ -108,7 +108,7 @@ async def guard_output(request: GuardOutputRequest) -> JSONResponse:
         latency_ms = provider_result.latency_ms or 0
     except ProviderUnavailableError as exc:
         action = config.guards.output.on_fail
-        decided_by = provider_name
+        decided_by = provider_name.value
         score = None
         reason = str(exc)
         modules_triggered = []
