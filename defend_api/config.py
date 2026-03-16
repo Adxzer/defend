@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any, List, Optional
 
 import yaml
-from pydantic import BaseModel, Field, ValidationError, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .schemas import GuardAction, ProviderName
@@ -84,6 +84,12 @@ class ThresholdsConfig(BaseModel):
         if flag is not None and not flag < v:
             raise ValueError("thresholds.flag must be less than thresholds.block")
         return v
+
+    @model_validator(mode="after")
+    def validate_relationship(self) -> "ThresholdsConfig":
+        if not self.flag < self.block:
+            raise ValueError("thresholds.flag must be less than thresholds.block")
+        return self
 
 
 class GuardsInputConfig(BaseModel):

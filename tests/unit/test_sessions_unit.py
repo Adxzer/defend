@@ -1,12 +1,13 @@
 import pytest
 
-from defend_api.pipeline.session_accumulator import get_session_accumulator
+from defend_api.pipeline.session_accumulator import _SESSION_STATE, get_session_accumulator
 from defend_api.guard_session import get_guard_session_store
 
 
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_session_accumulator_in_memory_unit():
+    _SESSION_STATE.clear()
     acc = await get_session_accumulator()
 
     session_id = "test-session"

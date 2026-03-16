@@ -34,7 +34,7 @@ def test_client_input_happy_path(monkeypatch):
         "score": 0.0,
         "reason": None,
         "modules_triggered": [],
-        "context": 0,
+        "context": "none",
         "latency_ms": 0,
     }
 
@@ -58,7 +58,7 @@ def test_client_raises_blocked_error_when_configured(monkeypatch):
         "score": 1.0,
         "reason": "blocked",
         "modules_triggered": [],
-        "context": 0,
+        "context": "none",
         "latency_ms": 0,
     }
 
