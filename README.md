@@ -64,7 +64,7 @@ response = your_llm_call(user_message)   # your LLM, unchanged
 result = guard.output(response)          # guard the output for leaks and unsafe content
 if result.blocked:
     return result.error_response()
-``>
+```
 
 For a step-by-step guide (including raw HTTP examples), see `GETTING_STARTED.md`.
 
