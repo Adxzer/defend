@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
+from ..config import get_defend_config
 from ..config import get_settings
 from ..logging import get_logger
 from ..pipeline.intent_fastpass import run_intent_gate
@@ -62,6 +63,7 @@ def get_regex_engine() -> RegexHeuristics:
 
 async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResult:
     settings = get_settings()
+    defend_config = get_defend_config()
 
     # L1 – Normalization
     normalized: NormalizedText = normalize_text(text)
@@ -159,27 +161,31 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
     # L6 – Provider orchestrator
     provider_orchestrator = get_provider_orchestrator()
     provider_result = await provider_orchestrator.evaluate(normalized.normalized, session_id=session_id)
-    is_injection_provider = provider_result.action == "block"
+    is_provider_block = provider_result.action == "block"
+    is_provider_flag = provider_result.action == "flag"
 
-    # Preserve existing defend diagnostics based on the underlying model behaviour.
-    # For now, we rely on the provider using the same classifier implementation.
-    from ..models.defend_qwen import get_defend_classifier  # local import to avoid cycles
-
-    defend_classifier = get_defend_classifier()
-    defend_output = defend_classifier.classify(normalized.normalized)
-    defend_diag = DefendDiagnostics(
-        is_injection=defend_output.is_injection,
-        probability=defend_output.probability,
-    )
-
-    is_injection = is_injection_provider or (session_result.decision == "BLOCK" if session_result else False)
+    session_blocked = session_result.decision == "BLOCK" if session_result else False
+    is_injection = is_provider_block or session_blocked
 
     if is_injection:
         final_action = FinalAction.BLOCK
-    elif regex_res.decision == "FLAG":
+    elif is_provider_flag or regex_res.decision == "FLAG":
         final_action = FinalAction.LOG
     else:
         final_action = FinalAction.PASS
+
+    defend_diag: Optional[DefendDiagnostics] = None
+    # Only compute defend model diagnostics when defend is configured in the provider chain.
+    if defend_config.provider.primary == "defend" or defend_config.provider.fallback == "defend":
+        # Preserve existing defend diagnostics based on the underlying model behaviour.
+        from ..models.defend_qwen import get_defend_classifier  # local import to avoid cycles
+
+        defend_classifier = get_defend_classifier()
+        defend_output = defend_classifier.classify(normalized.normalized)
+        defend_diag = DefendDiagnostics(
+            is_injection=defend_output.is_injection,
+            probability=defend_output.probability,
+        )
 
     layers = LayerDiagnostics(
         normalization=norm_diag,

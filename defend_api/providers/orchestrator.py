@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional
 
 from ..config import get_defend_config, get_settings
-from ..modules import get_active_modules
+from ..modules import build_modules_from_specs
 from . import get_provider
 from .base import ProviderResult, ProviderUnavailableError
 
@@ -24,6 +24,10 @@ class ProviderOrchestrator:
         fallback = self._config.provider.fallback
 
         modules = []
+        if primary in {"claude", "openai"}:
+            configured = build_modules_from_specs(self._config.modules or [])
+            # Core provider-layer modules are input-oriented.
+            modules = [m for m in configured if m.direction in ("input", "both")]
 
         # Both-active mode: defend as gate in front of LLM provider.
         if fallback == "defend" and primary in {"claude", "openai"}:
@@ -36,9 +40,6 @@ class ProviderOrchestrator:
 
             # Defend passed - run LLM provider for final decision.
             llm = get_provider(primary)
-            if llm.supports_modules:
-                modules = list(get_active_modules().values())
-
             try:
                 return await llm.evaluate(text=text, session_id=session_id, modules=modules)
             except ProviderUnavailableError:
@@ -47,9 +48,6 @@ class ProviderOrchestrator:
 
         # Single-provider mode.
         provider = get_provider(primary)
-        if provider.supports_modules:
-            modules = list(get_active_modules().values())
-
         return await provider.evaluate(text=text, session_id=session_id, modules=modules)
 
 

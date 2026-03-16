@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import math
 import uuid
-from typing import Any, Dict, List
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
+from ..config import get_defend_config
 from ..guard_session import get_guard_session_store
-from ..pipeline.orchestrator import run_pipeline
+from ..modules import build_modules_from_specs
+from ..providers import get_provider
+from ..providers.base import ProviderUnavailableError
 from ..schemas import GuardInputRequest, GuardOutputRequest, GuardResult
 
 
@@ -25,21 +28,38 @@ def _sanitize_finite(obj: Any) -> Any:
     return obj
 
 
+def _map_final_action_to_guard_action(final_action: Any) -> str:
+    value = getattr(final_action, "value", None)
+    if value == "BLOCK":
+        return "block"
+    if value == "LOG":
+        return "flag"
+    return "pass"
+
+
+def _format_output_eval_text(output_text: str, input_context: Optional[Dict[str, Any]]) -> str:
+    if not input_context or not input_context.get("text"):
+        return output_text
+    user_text = str(input_context.get("text", ""))
+    return f"ORIGINAL_USER_INPUT:\n{user_text}\n\nLLM_RESPONSE:\n{output_text}"
+
+
 @router.post("/input", response_model=GuardResult)
 async def guard_input(request: GuardInputRequest) -> JSONResponse:
-    # Run the existing pipeline; this already goes through providers & modules.
-    pipeline_result = await run_pipeline(request.text, request.session_id)
+    from ..pipeline.orchestrator import run_pipeline
 
     session_id = request.session_id or f"def-{uuid.uuid4().hex[:8]}"
+    # Run the pipeline with a session id so L5 applies on first turn.
+    pipeline_result = await run_pipeline(request.text, session_id)
     store = await get_guard_session_store()
     context: Dict[str, Any] = {
         "text": request.text,
         "provider": pipeline_result.decided_by or "defend",
-        "score": pipeline_result.score if pipeline_result.score is not None else "",
+        "score": pipeline_result.score,
     }
     await store.save_input_context(session_id, context)
 
-    action = "block" if pipeline_result.final_action == pipeline_result.final_action.BLOCK else "pass"
+    action = _map_final_action_to_guard_action(pipeline_result.final_action)
 
     result = GuardResult(
         action=action,
@@ -59,6 +79,7 @@ async def guard_input(request: GuardInputRequest) -> JSONResponse:
 
 @router.post("/output", response_model=GuardResult)
 async def guard_output(request: GuardOutputRequest) -> JSONResponse:
+    config = get_defend_config()
     store = await get_guard_session_store()
     input_context = None
     context_flag: str = "none"
@@ -68,31 +89,43 @@ async def guard_output(request: GuardOutputRequest) -> JSONResponse:
         if input_context:
             context_flag = "session"
 
-    # For now, reuse run_pipeline to get provider decision on output text only.
-    # A later iteration can introduce a dedicated output-evaluation path that
-    # passes both input and output to the provider.
-    pipeline_result = await run_pipeline(request.text, None)
+    provider_name = config.guards.output.provider
+    provider = get_provider(provider_name)
+    if provider_name == "defend" or not provider.supports_modules:
+        raise HTTPException(status_code=400, detail="Output guarding requires an LLM provider (claude or openai).")
 
-    if pipeline_result.decided_by == "defend":
-        # Enforce that output guarding uses an LLM provider only.
-        raise HTTPException(
-            status_code=400,
-            detail="Output guarding requires an LLM provider (claude or openai). adxzer/defend only supports input evaluation.",
-        )
+    modules = build_modules_from_specs(config.guards.output.modules or [])
+    modules = [m for m in modules if m.direction in ("output", "both")]
+    eval_text = _format_output_eval_text(request.text, input_context)
+
+    try:
+        provider_result = await provider.evaluate(text=eval_text, session_id=request.session_id, modules=modules)
+        action = provider_result.action
+        decided_by = provider_result.provider
+        score = provider_result.score
+        reason = provider_result.reason
+        modules_triggered = provider_result.modules_triggered or []
+        latency_ms = provider_result.latency_ms or 0
+    except ProviderUnavailableError as exc:
+        action = config.guards.output.on_fail
+        decided_by = provider_name
+        score = None
+        reason = str(exc)
+        modules_triggered = []
+        latency_ms = 0
 
     session_id = request.session_id or f"def-{uuid.uuid4().hex[:8]}"
-    action = "block" if pipeline_result.final_action == pipeline_result.final_action.BLOCK else "pass"
 
     result = GuardResult(
         action=action,
         session_id=session_id,
-        decided_by=pipeline_result.decided_by or "defend",
+        decided_by=decided_by,
         direction="output",
-        score=pipeline_result.score,
-        reason=pipeline_result.reason,
-        modules_triggered=pipeline_result.modules_triggered or [],
+        score=score,
+        reason=reason,
+        modules_triggered=modules_triggered,
         context=context_flag,  # "session" if input context was used
-        latency_ms=pipeline_result.latency_ms or 0,
+        latency_ms=latency_ms,
     )
 
     payload = _sanitize_finite(result.model_dump())
