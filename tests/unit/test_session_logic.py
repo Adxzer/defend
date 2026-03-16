@@ -2,7 +2,7 @@ import time
 
 import pytest
 
-from defend_api.pipeline.session_accumulator import SessionAccumulator, SessionState
+from defend_api.pipeline.session_accumulator import SessionAccumulator
 from defend_api.guard_session import GuardSessionStore
 
 

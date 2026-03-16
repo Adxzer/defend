@@ -6,7 +6,7 @@ import yaml
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from .schemas import GuardAction, GuardContext, ProviderName
+from .schemas import GuardAction, ProviderName
 
 
 class Settings(BaseSettings):

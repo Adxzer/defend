@@ -40,7 +40,8 @@ class OpenAIProvider(BaseProvider):
     supports_modules = True
 
     def __init__(self) -> None:
-        settings = get_settings()
+        # Settings are currently unused but kept for future configurability.
+        get_settings()
         self._client: Optional[OpenAI] = None
         # Model choice can be made configurable later; hard-code for now.
         self._model = "gpt-4.1-mini"

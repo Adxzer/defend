@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pytest
 
 from defend_api.config import DefendConfig, ProviderConfig, ThresholdsConfig, get_defend_config

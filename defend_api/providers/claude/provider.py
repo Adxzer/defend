@@ -40,7 +40,8 @@ class ClaudeProvider(BaseProvider):
     supports_modules = True
 
     def __init__(self) -> None:
-        settings = get_settings()
+        # Settings are currently unused but kept for future configurability.
+        get_settings()
         self._client: Optional[Anthropic] = None
         # Model choice can be made configurable later; hard-code for now.
         self._model = "claude-3-5-sonnet-20241022"

@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
-from .exceptions import BlockedError, DefendError, ProviderError
+from .exceptions import BlockedError, ProviderError
 from .models import GuardResult
 
 
