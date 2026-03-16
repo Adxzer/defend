@@ -46,7 +46,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-asyncio pytest-cov httpx pydantic pydantic-settings pyyaml
+          pip install pytest pytest-asyncio pytest-cov httpx \
+            pydantic pydantic-settings pyyaml fastapi numpy anthropic openai transformers
           pip install .
 
       - name: Run unit and integration tests with coverage
@@ -78,7 +79,8 @@ jobs:
       - name: Install test dependencies and API
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-asyncio httpx uvicorn defend-api pydantic pydantic-settings pyyaml
+          pip install pytest pytest-asyncio httpx uvicorn defend-api \
+            pydantic pydantic-settings pyyaml fastapi numpy anthropic openai transformers
 
       - name: Start API
         run: |
