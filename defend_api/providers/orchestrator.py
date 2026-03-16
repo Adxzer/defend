@@ -31,10 +31,10 @@ class ProviderOrchestrator:
             defend_result = await defend.evaluate(text=text, session_id=session_id, modules=[])
 
             if defend_result.action == "block":
-                # Hard block from defend — do not call LLM provider.
+                # Hard block from defend - do not call LLM provider.
                 return defend_result
 
-            # Defend passed — run LLM provider for final decision.
+            # Defend passed - run LLM provider for final decision.
             llm = get_provider(primary)
             if llm.supports_modules:
                 modules = list(get_active_modules().values())
@@ -42,7 +42,7 @@ class ProviderOrchestrator:
             try:
                 return await llm.evaluate(text=text, session_id=session_id, modules=modules)
             except ProviderUnavailableError:
-                # LLM call failed — fall back to defend's pass result.
+                # LLM call failed - fall back to defend's pass result.
                 return defend_result
 
         # Single-provider mode.

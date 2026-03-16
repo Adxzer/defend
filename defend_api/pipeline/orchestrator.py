@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Optional
 
 from ..config import get_settings
@@ -44,9 +43,7 @@ class OrchestratorResult:
 
 def _build_regex_engine() -> RegexHeuristics:
     settings = get_settings()
-    patterns_path = Path("config") / "patterns.yaml"
     return RegexHeuristics(
-        patterns_path=patterns_path,
         block_threshold=settings.REGEX_BLOCK_THRESHOLD,
         flag_threshold=settings.REGEX_FLAG_THRESHOLD,
     )

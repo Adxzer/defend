@@ -21,7 +21,7 @@ if result.blocked:
     return result.error_response()
 ```
 
-That's the whole integration. Defend never makes the LLM call — you own that.
+That's the whole integration. Defend never makes the LLM call - you own that.
 
 ---
 
@@ -29,9 +29,9 @@ That's the whole integration. Defend never makes the LLM call — you own that.
 
 Every request passes through a six-layer preprocessing pipeline (normalization, intent fast-pass, regex heuristics, perplexity filter, session accumulation) before reaching the semantic provider layer. You choose the provider.
 
-**`defend`** — a built-in fine-tuned Qwen2.5 classifier. Free, fast, binary output. No external API calls. Good for catching obvious attacks at the gate.
+**`defend`** - a built-in fine-tuned Qwen2.5 classifier. Free, fast, binary output. No external API calls. Good for catching obvious attacks at the gate.
 
-**`claude` / `openai`** — LLM-backed evaluation with calibrated scores, natural language reasoning, and composable guard modules. Required for output guarding.
+**`claude` / `openai`** - LLM-backed evaluation with calibrated scores, natural language reasoning, and composable guard modules. Required for output guarding.
 
 Run both together: `defend` blocks obvious attacks for free, the LLM provider handles everything that needs judgment.
 
@@ -49,8 +49,8 @@ Modules extend the LLM provider's evaluation. Stack as many as you need.
 | `topic` | input | Requests outside your defined scope |
 | `topic_output` | output | Responses drifting outside your defined scope |
 | `prompt_leak` | output | System prompt or internal instruction exposure |
-| `custom` | input | Anything — describe it in plain language |
-| `custom_output` | output | Anything — describe it in plain language |
+| `custom` | input | Anything - describe it in plain language |
+| `custom_output` | output | Anything - describe it in plain language |
 
 ---
 
