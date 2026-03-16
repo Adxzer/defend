@@ -1,72 +1,89 @@
+# DEFEND
+
+**The guardrail layer your LLM stack is missing.**
+
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
-![Languages](https://img.shields.io/badge/languages-30%2B-green)
 ![Docker](https://img.shields.io/badge/docker-ready-blue)
 
-## Defend API Microservice
+Most LLM security stops at the input. DEFEND guards both directions - wrapping your existing LLM call with session-aware input and output evaluation, without ever touching the LLM call itself.
+```python
+guard = defend.Client(api_key="...", provider="claude", modules=["injection", "pii"])
 
-Defend API is a standalone, open-source HTTP microservice implementing a six-layer safety pipeline:
+result = guard.input(user_message)       # block prompt injection, PII, jailbreaks
+if result.blocked:
+    return result.error_response()
 
-- **L1**: Text normalization
-- **L2**: Intent fast-pass using a lightweight embedding model
-- **L3**: Regex and heuristic scoring from a YAML pattern library
-- **L4**: Perplexity-based filter 
-- **L5**: Multi-turn session accumulation backed by Redis
-- **L6**: Final semantic classifier using the `Adaxer/defend` checkpoint (trained on [Qwen2.5-0.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct))
+response = your_llm_call(user_message)   # your LLM, unchanged
 
-The goal is a reusable guardrail service that can sit in front of any LLM stack.
+result = guard.output(response)          # block prompt leaks, PII in responses
+if result.blocked:
+    return result.error_response()
+```
 
-### Why Defend?
+That's the whole integration. DEFEND never makes the LLM call — you own that.
 
-LLMs are vulnerable to prompt injection and jailbreaking in many languages, but most guardrails are English-only. Defend uses a multilingual pipeline (including a classifier trained on [Qwen2.5-0.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct)) so you can protect your stack across the languages your users speak.
+---
 
-### Supported Languages
+## How it works
 
-The semantic classifier is trained on [Qwen2.5-0.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct), which supports **29+ languages**, including Chinese, English, French, Spanish, Portuguese, German, Italian, Russian, Japanese, Korean, Vietnamese, Thai, Arabic, and more.
+Every request passes through a six-layer preprocessing pipeline (normalization, intent fast-pass, regex heuristics, perplexity filter, session accumulation) before reaching the semantic provider layer. You choose the provider.
 
-### Quick start
+**`defend`** — a built-in fine-tuned Qwen2.5 classifier. Free, fast, binary output. No external API calls. Good for catching obvious attacks at the gate.
 
+**`claude` / `openai`** — LLM-backed evaluation with calibrated scores, natural language reasoning, and composable guard modules. Required for output guarding.
+
+Run both together: `defend` blocks obvious attacks for free, the LLM provider handles everything that needs judgment.
+
+---
+
+## Modules
+
+Modules extend the LLM provider's evaluation. Stack as many as you need.
+
+| Module | Direction | Detects |
+|---|---|---|
+| `injection` | input | Instruction overrides, persona hijacking, jailbreaks, social engineering |
+| `pii` | input | PII submitted by users |
+| `pii_output` | output | PII leaking in model responses |
+| `topic` | input | Requests outside your defined scope |
+| `topic_output` | output | Responses drifting outside your defined scope |
+| `prompt_leak` | output | System prompt or internal instruction exposure |
+| `custom` | input | Anything — describe it in plain language |
+| `custom_output` | output | Anything — describe it in plain language |
+
+---
+
+## Self-hosted
 ```bash
 pip install -r requirements.txt
-uvicorn defend_api.main:app --reload
+cp .env.example .env           # add your API keys
+uvicorn defend_api.main:app --host 0.0.0.0 --port 8000
 ```
 
-Then call:
-
-```bash
-curl -X POST "http://localhost:8000/classify" \
-  -H "Content-Type: application/json" \
-  -d '{"text": "Hello world", "session_id": "demo"}'
+Configure providers and modules in `defend.config.yaml`. Redis is required for session state.
+```yaml
+guards:
+  input:
+    provider: defend
+  output:
+    provider: claude
+    modules: [prompt_leak, pii_output]
 ```
 
-The service returns a JSON object containing `is_injection`, a `final_action`, and per-layer diagnostics under `layers`.
+---
 
-### Model loading & caching
+## API
 
-By default, Defend API downloads its models from Hugging Face on first use and relies on the standard Transformers/SentenceTransformer libraries:
+| Endpoint | Description |
+|---|---|
+| `POST /guard/input` | Evaluate user input, return verdict + `session_id` |
+| `POST /guard/output` | Evaluate LLM response, optionally with input context |
+| `POST /classify` | Legacy single-call classification endpoint |
+| `GET /health` | Health check |
+| `GET /ready` | Readiness check (models + Redis) |
+| `GET /metrics` | Prometheus metrics |
 
-- Intent (L2) uses `sentence-transformers/all-MiniLM-L6-v2`.
-- Perplexity (L4) uses a small GPT‑2 model (e.g. `gpt2`).
-- Defend (L6) uses the `Adaxer/defend` classifier checkpoint.
+---
 
-```bash
-INTENT_MODEL_ID=sentence-transformers/all-MiniLM-L6-v2
-PERPLEXITY_MODEL_ID=gpt2
-DEFEND_MODEL_ID=Adaxer/defend
-```
-
-On startup (or on first request), the service will:
-
-- Download the required models from Hugging Face into the standard local cache.
-- Fail readiness (`/ready`) and classification (`/classify`) if any mandatory model or Redis is unavailable.
-
-### API surface
-
-- `POST /classify` – main classification endpoint.
-- `GET /health` – lightweight health check.
-- `GET /ready` – readiness hook for container orchestration.
-- `GET /metrics` – Prometheus metrics via `prometheus-fastapi-instrumentator`.
-- `GET /models`, `POST /invoke` – optional compatibility endpoints.
-
-See `ARCHITECTURE.md` for more detail on the design and pipeline flow.
-
+See `ARCHITECTURE.md` for the full pipeline, provider system, and response schemas.

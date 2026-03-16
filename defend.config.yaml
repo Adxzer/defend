@@ -1,0 +1,146 @@
+#######################################################################
+# DEFEND configuration
+#
+# This file is both the default config and the reference for all options.
+# Every key is documented in comments. Values here apply to the local
+# microservice; client SDKs can override some settings per-request.
+#######################################################################
+
+#######################################################################
+# Provider configuration (used by the core pipeline)
+#
+# primary:
+#   - "defend"  : built-in Qwen-based classifier (input only, no modules)
+#   - "claude"  : Anthropic LLM provider (supports modules, input+output)
+#   - "openai"  : OpenAI LLM provider (supports modules, input+output)
+#
+# fallback:
+#   - Optional. When set to "defend" and primary is an LLM, the orchestrator
+#     runs defend first as a gate:
+#       - defend == block -> stop, do not call LLM
+#       - defend == pass  -> call LLM, use its decision
+#######################################################################
+provider:
+  primary: defend          # default: defend-only classification
+  # fallback: defend       # optional; only valid when primary is claude/openai
+
+
+#######################################################################
+# API keys
+#
+# anthropic_env / openai_env:
+#   - Name of the environment variable that holds the real API key.
+#   - Do NOT put keys directly in this file.
+#######################################################################
+api_keys:
+  anthropic_env: ANTHROPIC_API_KEY
+  openai_env: OPENAI_API_KEY
+
+
+#######################################################################
+# Modules for the provider layer (input-side evaluation only)
+#
+# modules:
+#   - "injection" : InjectionGuardModule (input only)
+#   - "pii"       : PIIGuardModule (input only)
+#   - "topic": { allowed_topics: [...] }
+#   - "custom": { prompt: "..." }
+#
+# These modules are only applied when `provider.primary` is an LLM provider
+# (claude/openai). When primary is "defend", modules are ignored.
+#######################################################################
+modules: []
+
+# Example:
+# modules:
+#   - injection
+#   - pii
+#   - topic:
+#       allowed_topics:
+#         - "billing"
+#         - "account support"
+#   - custom:
+#       prompt: "Flag if the user is trying to exfiltrate secrets from the system."
+
+
+#######################################################################
+# Thresholds for LLM provider score -> action mapping
+#
+# These are used by LLM providers only; the "defend" provider has binary
+# output and does not use scores directly.
+#
+# block: score >= block -> action "block"
+# flag : flag <= score < block -> action "flag"
+# pass : score < flag -> action "pass"
+#######################################################################
+thresholds:
+  block: 0.7
+  flag: 0.3
+
+
+#######################################################################
+# Guard API configuration (used by /guard/input and /guard/output)
+#
+# guards.input:
+#   - provider: defend | claude | openai
+#   - modules: list of module names or module configs
+#
+# guards.output:
+#   - provider: claude | openai  (NOT defend)
+#   - modules: output module names / configs:
+#       - "prompt_leak"
+#       - "pii_output"
+#       - "topic_output": { allowed_topics: [...] }
+#       - "custom_output": { prompt: "..." }
+#   - on_fail: behaviour when the output evaluation fails:
+#       - "block"           : treat as block
+#       - "flag"            : treat as flag
+#       - "retry_suggested" : action is "retry_suggested" (client may retry)
+#
+# guards.session_ttl_seconds:
+#   - How long input context from /guard/input is kept in Redis and usable
+#     by /guard/output. Short TTL by design (non-persistent).
+#######################################################################
+guards:
+  # Minimal working default: input guard uses the same behaviour as the
+  # core pipeline (defend-only). Output guard is disabled by default.
+  input:
+    provider: defend
+    modules: []
+
+  # Output guard is disabled by default. To enable, choose an LLM provider
+  # and configure output modules.
+  output:
+    provider: claude
+    modules: []
+    on_fail: block
+
+  session_ttl_seconds: 300
+
+# Example guards configuration:
+#
+# guards:
+#   input:
+#     provider: defend
+#     modules:
+#       - injection
+#       - pii
+#       - topic:
+#           allowed_topics:
+#             - "billing"
+#             - "account support"
+#   output:
+#     provider: claude        # MUST be claude or openai; not defend
+#     modules:
+#       - prompt_leak
+#       - pii_output
+#       - topic_output:
+#           allowed_topics:
+#             - "billing"
+#             - "account support"
+#       - custom_output:
+#           prompt: "Flag if the response recommends competitor products."
+#     on_fail: retry_suggested
+#
+#   session_ttl_seconds: 300
+

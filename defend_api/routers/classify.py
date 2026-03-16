@@ -24,11 +24,20 @@ def _sanitize_finite(obj: Any) -> Any:
 @router.post("", response_model=ClassificationResponse)
 async def classify(request: ClassificationRequest) -> JSONResponse:
     result = await run_pipeline(request.text, request.session_id)
+
+    # Map pipeline result to v2 response schema.
     response = ClassificationResponse(
         is_injection=result.is_injection,
         final_action=result.final_action,
         layers=result.layers,
+        decided_by=result.decided_by or "defend",
+        score=result.score,
+        reason=result.reason,
+        modules_triggered=result.modules_triggered or [],
+        defend_signal=None,
+        latency_ms=result.latency_ms,
     )
+
     payload = _sanitize_finite(response.model_dump())
     return JSONResponse(content=payload)
 

@@ -6,7 +6,6 @@ from typing import Optional
 
 from ..config import get_settings
 from ..logging import get_logger
-from ..models.defend_qwen import get_defend_classifier
 from ..pipeline.intent_fastpass import run_intent_gate
 from ..pipeline.normalization import NormalizedText, normalize_text
 from ..pipeline.perplexity_filter import run_perplexity_filter
@@ -27,6 +26,7 @@ from ..schemas import (
     SessionDecision,
     SessionDiagnostics,
 )
+from ..providers.orchestrator import get_provider_orchestrator
 
 
 @dataclass
@@ -34,6 +34,12 @@ class OrchestratorResult:
     is_injection: bool
     final_action: FinalAction
     layers: LayerDiagnostics
+    decided_by: Optional[str] = None
+    score: Optional[float] = None
+    reason: Optional[str] = None
+    modules_triggered: Optional[list[str]] = None
+    defend_signal: Optional[str] = None
+    latency_ms: Optional[int] = None
 
 
 def _build_regex_engine() -> RegexHeuristics:
@@ -153,7 +159,15 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
             )
             return OrchestratorResult(is_injection=True, final_action=FinalAction.BLOCK, layers=layers)
 
-    # L6 – Defend Qwen classifier
+    # L6 – Provider orchestrator
+    provider_orchestrator = get_provider_orchestrator()
+    provider_result = await provider_orchestrator.evaluate(normalized.normalized, session_id=session_id)
+    is_injection_provider = provider_result.action == "block"
+
+    # Preserve existing defend diagnostics based on the underlying model behaviour.
+    # For now, we rely on the provider using the same classifier implementation.
+    from ..models.defend_qwen import get_defend_classifier  # local import to avoid cycles
+
     defend_classifier = get_defend_classifier()
     defend_output = defend_classifier.classify(normalized.normalized)
     defend_diag = DefendDiagnostics(
@@ -161,7 +175,7 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
         probability=defend_output.probability,
     )
 
-    is_injection = defend_output.is_injection or (session_result.decision == "BLOCK" if session_result else False)
+    is_injection = is_injection_provider or (session_result.decision == "BLOCK" if session_result else False)
 
     if is_injection:
         final_action = FinalAction.BLOCK
@@ -177,7 +191,17 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
         perplexity=perplexity_diag,
         session=session_diag,
         defend=defend_diag,
-    )
+        )
 
-    return OrchestratorResult(is_injection=is_injection, final_action=final_action, layers=layers)
+    return OrchestratorResult(
+        is_injection=is_injection,
+        final_action=final_action,
+        layers=layers,
+        decided_by=provider_result.provider,
+        score=provider_result.score if provider_result.provider != "defend" else None,
+        reason=provider_result.reason if provider_result.provider != "defend" else None,
+        modules_triggered=provider_result.modules_triggered if provider_result.provider != "defend" else [],
+        defend_signal=None,  # populated at response layer for both-active if needed
+        latency_ms=provider_result.latency_ms,
+    )
 

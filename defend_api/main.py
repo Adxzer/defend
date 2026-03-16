@@ -3,7 +3,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 from .config import get_settings
 from .logging import configure_logging, get_logger
-from .routers import classify, compat, health
+from .routers import guard, health
 
 
 def create_app() -> FastAPI:
@@ -12,13 +12,12 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="Defend API",
-        description="Standalone Defend prompt-injection classifier microservice.",
+        description="Standalone Defend guardrail microservice.",
         version="0.1.0",
     )
 
     app.include_router(health.router)
-    app.include_router(classify.router)
-    app.include_router(compat.router)
+    app.include_router(guard.router)
 
     Instrumentator().instrument(app).expose(app, include_in_schema=False)
 

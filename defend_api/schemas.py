@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -96,4 +96,47 @@ class ClassificationResponse(BaseModel):
     is_injection: bool
     final_action: FinalAction
     layers: LayerDiagnostics
+    decided_by: Optional[str] = None
+    score: Optional[float] = None
+    reason: Optional[str] = None
+    modules_triggered: List[str] = Field(default_factory=list)
+    defend_signal: Optional[str] = None
+    latency_ms: Optional[int] = None
+
+
+class GuardInputRequest(BaseModel):
+    text: str
+    session_id: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+
+class GuardOutputRequest(BaseModel):
+    text: str
+    session_id: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+
+class GuardResult(BaseModel):
+    action: Literal["pass", "flag", "block", "retry_suggested"]
+    session_id: str
+    decided_by: str
+    direction: Literal["input", "output"]
+    score: Optional[float] = None
+    reason: Optional[str] = None
+    modules_triggered: List[str] = Field(default_factory=list)
+    context: Literal["session", "none"] = "none"
+    latency_ms: int = 0
+
+    @property
+    def blocked(self) -> bool:
+        return self.action == "block"
+
+    def error_response(self, message: Optional[str] = None) -> Dict[str, Any]:
+        return {
+            "error": "request_blocked",
+            "message": message or "This request was blocked by the content guardrail.",
+            "reason": self.reason,
+            "modules_triggered": self.modules_triggered,
+        }
+
 
