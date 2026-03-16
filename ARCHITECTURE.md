@@ -1,25 +1,55 @@
 # Architecture
 
-Your LLM trusts everything. DEFEND doesn't.
+Defend is a FastAPI microservice that adds an **AI security guardrail layer** in front of and behind your LLMs.
 
-DEFEND is a FastAPI microservice that wraps a six-layer safety pipeline and exposes a session-scoped input/output guard API. Every request is evaluated before it reaches your LLM. Every response is evaluated before it reaches your user.
+- Every **user request** is evaluated before it reaches your LLM.
+- Every **LLM response** is evaluated before it reaches your user.
+
+This document is written for **developers** and **security engineers** who want to understand how Defend works and where to extend it.
 
 ---
 
-## The pipeline
+## High-level flow
 
-All requests pass through L1–L5 unconditionally, then reach the provider layer (L6) for the final decision.
+At a high level, Defend sits between your application and your LLM provider:
+
+```mermaid
+flowchart LR
+  userApp["Your application"]
+  defendApi["Defend API (/guard/input, /guard/output)"]
+  llmProvider["LLM provider (Claude / OpenAI)"]
+
+  userApp -->|"user message"| defendApi
+  defendApi -->|"guarded input or block"| userApp
+  userApp -->|"LLM call (if allowed)"| llmProvider
+  llmProvider -->|"raw LLM response"| userApp
+  userApp -->|"response for evaluation"| defendApi
+  defendApi -->|"guarded output or block"| userApp
+```
+
+- `/guard/input` evaluates the **incoming message** and returns an action plus a `session_id`.
+- `/guard/output` evaluates the **LLM response**, optionally using the earlier input via `session_id`.
+
+For HTTP details, see the API section in `README.md` and `GETTING_STARTED.md`.
+
+---
+
+## The safety pipeline
+
+Internally, Defend runs each request through a multi-layer pipeline before the semantic provider makes a decision.
 
 | Layer | Name | What it does |
 |---|---|---|
-| L1 | Normalization | Text cleaning, Unicode canonicalization, homoglyph substitution |
-| L2 | Intent fast-pass | Lightweight embedding model - obvious benign inputs exit early |
-| L3 | Regex heuristics | Pattern scoring from `defend_api.patterns.DEFAULT_PATTERNS` (code-defined regexes) |
-| L4 | Perplexity filter | GPT-2-style LM flags anomalous or machine-generated payloads |
-| L5 | Session accumulator | In-memory rolling risk score across conversation turns (per-process, non-durable) |
-| L6 | Provider layer | Final semantic decision - defend, claude, or openai |
+| L1 | Normalization | Cleans and normalizes text (Unicode, homoglyphs, etc.) |
+| L2 | Intent fast-pass | Quickly exits obvious benign inputs using a lightweight model |
+| L3 | Regex heuristics | Applies pattern-based checks from `defend_api.patterns.DEFAULT_PATTERNS` |
+| L4 | Perplexity filter | Flags anomalous or machine-generated payloads |
+| L5 | Session accumulator | Maintains a rolling risk score across conversation turns |
+| L6 | Provider layer | Makes the final semantic decision using `defend`, `claude`, or `openai` |
 
-Entry point: `defend_api.pipeline.orchestrator.run_pipeline(text, session_id)`. Returns an `OrchestratorResult` with `is_injection`, `final_action`, per-layer `LayerDiagnostics`, and provider metadata.
+All requests go through L1–L5 in order, then L6 decides whether to **pass**, **flag**, **block**, or suggest a retry.
+
+Code entry point: `defend_api.pipeline.orchestrator.run_pipeline(text, session_id)`. It returns an `OrchestratorResult` containing the final action, per-layer diagnostics, and provider metadata.
 
 ---
 
@@ -75,7 +105,7 @@ Output evaluation always uses an LLM provider. Setting `defend` as an output pro
 
 ## Modules
 
-Modules live in `defend_api/modules/`. Same drop-in discovery pattern as providers.
+Modules live in `defend_api/modules/`. They follow the same drop-in discovery pattern as providers.
 ```
 modules/
   base.py                     # BaseModule
@@ -133,7 +163,7 @@ Modules compose additively - each contributes a `system_prompt()` fragment appen
 - Runs output evaluation using an LLM provider and output modules.
 - Returns a `GuardResult` with `direction: "output"` and `context: "session"` when input context was available, `"none"` when not.
 
-Without a `session_id`, output evaluation is stateless - it still works, but the LLM provider has no knowledge of what was asked. Session state is per-process and non-durable; restarts or multiple processes will not share this context.
+Without a `session_id`, output evaluation is stateless. It still works, but the LLM provider has no knowledge of what was asked. Session state is per-process and non-durable; restarts or multiple processes will not share this context.
 
 ---
 
