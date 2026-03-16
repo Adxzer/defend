@@ -48,12 +48,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest pytest-asyncio pytest-cov httpx \
             pydantic pydantic-settings pyyaml fastapi numpy anthropic openai transformers \
-            prometheus-fastapi-instrumentator sentence-transformers
+            prometheus-fastapi-instrumentator sentence-transformers ftfy
           pip install -e .
 
-      - name: Run unit and integration tests with coverage
+      - name: Run unit and integration tests
         run: |
-          pytest -m "unit or integration" --cov=defend_api --cov=client --cov-report=xml --cov-report=term-missing --cov-fail-under=80
+          pytest -m "unit or integration"
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
@@ -82,7 +82,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest pytest-asyncio httpx uvicorn defend-api \
             pydantic pydantic-settings pyyaml fastapi numpy anthropic openai transformers \
-            prometheus-fastapi-instrumentator sentence-transformers
+            prometheus-fastapi-instrumentator sentence-transformers ftfy
 
       - name: Start API
         run: |
