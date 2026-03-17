@@ -64,7 +64,10 @@ class ProviderOrchestrator:
             defend = get_provider(ProviderName.DEFEND)
             defend_result = await defend.evaluate(text=text, session_id=session_id, modules=[])
 
-            if defend_result.action is GuardAction.BLOCK:
+            action_value = (
+                defend_result.action.value if isinstance(defend_result.action, GuardAction) else str(defend_result.action)
+            )
+            if action_value == GuardAction.BLOCK.value:
                 # Hard block from defend - do not call LLM provider.
                 return defend_result
 

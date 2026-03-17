@@ -37,6 +37,7 @@ server = [
 benchmark = [
   "datasets>=2.20",
   "scikit-learn>=1.5",
+  "langdetect>=1.0.9",
 ]
 
 all = [

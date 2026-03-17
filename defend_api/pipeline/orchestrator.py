@@ -196,8 +196,10 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
     # L6 - Provider orchestrator
     provider_orchestrator = get_provider_orchestrator()
     provider_result = await provider_orchestrator.evaluate(normalized.normalized, session_id=session_id)
-    is_provider_block = provider_result.action is GuardAction.BLOCK
-    is_provider_flag = provider_result.action is GuardAction.FLAG
+    # Providers return string actions ("pass"|"flag"|"block"). Compare by value, not identity.
+    action_value = provider_result.action.value if isinstance(provider_result.action, GuardAction) else str(provider_result.action)
+    is_provider_block = action_value == GuardAction.BLOCK.value
+    is_provider_flag = action_value == GuardAction.FLAG.value
 
     session_blocked = session_result.decision == "BLOCK" if session_result else False
     is_injection = is_provider_block or session_blocked
@@ -239,9 +241,9 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
         final_action=final_action,
         layers=layers,
         decided_by=provider_result.provider.value if isinstance(provider_result.provider, ProviderName) else provider_result.provider,
-        score=provider_result.score if provider_result.provider is not ProviderName.DEFEND else None,
-        reason=provider_result.reason if provider_result.provider is not ProviderName.DEFEND else None,
-        modules_triggered=provider_result.modules_triggered if provider_result.provider is not ProviderName.DEFEND else [],
+        score=provider_result.score if provider_result.provider != ProviderName.DEFEND else None,
+        reason=provider_result.reason if provider_result.provider != ProviderName.DEFEND else None,
+        modules_triggered=provider_result.modules_triggered if provider_result.provider != ProviderName.DEFEND else [],
         defend_signal=None,  # populated at response layer for both-active if needed
         latency_ms=provider_result.latency_ms,
     )
