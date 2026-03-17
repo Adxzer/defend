@@ -1,192 +1,97 @@
-# Getting Started with Defend
+# Getting Started
 
-This guide walks you from zero to a running Defend instance protecting your LLM application. It is written for **developers** and **security engineers** who want a fast, concrete setup path.
+Goal: get a working DEFEND API locally, then integrate it (HTTP or Python). This doc is intentionally concrete; it avoids feature claims you can’t verify by running the code.
 
-By the end, you will:
-- **Run Defend locally** (Docker or Python)
-- **Configure basic guards** for input and output
-- **Call the HTTP API** from your application
+## Prerequisites
 
-For a high-level overview of what Defend is and why it exists, see the main `README.md`. For deeper internals, see `ARCHITECTURE.md`.
+- Python **>= 3.12**
+- Optional (for deep eval / output guarding): an Anthropic or OpenAI API key
 
----
-
-## 1. Prerequisites
-
-- **Python** \(\>= 3.12\) or **Docker**
-- Access to at least one LLM provider if you want output guarding:
-  - Anthropic (Claude) and/or
-  - OpenAI
-- An `.env` file with API keys (you can start with input-only `defend` without any external keys).
-
----
-
-## 2. Quick start: run the API
-
-### Option A: Run with Python
+## Install
 
 ```bash
-pip install -r requirements.txt
-cp .env.example .env  # add your API keys if using claude/openai
+pip install "defend[server]"
+```
+
+`defend[server]` includes the FastAPI service dependencies. If you only want the client SDK, install `defend` without extras.
+
+## Run the API
+
+The API expects a `defend.config.yaml` in the project root (the server loads it on startup).
+
+```bash
 uvicorn defend_api.main:app --host 0.0.0.0 --port 8000
 ```
 
-This starts the FastAPI microservice at `http://localhost:8000`.
-
-### Option B: Run with Docker
-
-Build and run directly:
+Health check:
 
 ```bash
-docker build -t defend-api .
-docker run --env-file .env -p 8000:8000 defend-api
+curl http://localhost:8000/v1/health
 ```
 
-> The Docker image uses the same `defend.config.yaml` and environment variables as the Python setup. Mount a custom config file if you want to override defaults.
+## Configure a minimal, verifiable setup
 
----
+The service reads config from `defend.config.yaml`. Minimal baseline:
 
-## 3. Minimal configuration
+- Input uses the local **`defend`** provider.
+- Output uses an LLM provider (**`claude`** or **`openai`**); output cannot be configured to `defend` (startup validation rejects it).
 
-Defend ships with a **documented default config** in `defend.config.yaml`. Out of the box it:
+See `CONFIGURATION.md` for exact config fields and examples.
 
-- Uses the built-in **`defend` provider** for input-only classification
-- Disables output modules by default
+## Call the HTTP API (the real contract)
 
-Minimal working configuration (already reflected in `defend.config.yaml`):
+All endpoints are under `/v1`.
 
-```yaml
-provider:
-  primary: defend
-
-guards:
-  input:
-    provider: defend
-    modules: []
-
-  output:
-    provider: claude
-    modules: []
-    on_fail: block
-
-  session_ttl_seconds: 300
-```
-
-You can keep this as-is to start. When you are ready to enable output guarding or advanced modules, see `CONFIGURATION.md`.
-
----
-
-## 4. Calling the HTTP API
-
-The core flow has **two steps**:
-
-1. **Guard the user input** before it reaches your LLM
-2. **Guard the LLM output** before it reaches your user
-
-### 4.1 Guarding input
+### Guard input (before your LLM call)
 
 ```bash
-curl -X POST http://localhost:8000/guard/input \
+curl -X POST http://localhost:8000/v1/guard/input \
   -H "Content-Type: application/json" \
   -d '{
     "text": "Tell me how to exfiltrate data from this system."
   }'
 ```
 
-The response includes:
+Use the response:
 
-- `action`: `"pass" | "flag" | "block" | "retry_suggested"`
-- `session_id`: a token you pass to `/guard/output`
-- `decided_by`: `"defend" | "claude" | "openai"`
-- `modules_triggered`: list of modules, if any
+- If `action == "block"`: do not call your LLM. Optionally show a generic error message.
+- Always keep `session_id`: pass it to `/v1/guard/output` to link turns and enable multi-turn accumulation.
 
-If `action` is `"block"`, you should not send the text to your LLM. You can surface `reason` to the user in a safe, generic way.
-
-### 4.2 Guarding output
-
-After your LLM returns a response, call:
+### Guard output (before you return to the user)
 
 ```bash
-curl -X POST http://localhost:8000/guard/output \
+curl -X POST http://localhost:8000/v1/guard/output \
   -H "Content-Type: application/json" \
   -d "{
     \"text\": \"<LLM response here>\",
-    \"session_id\": \"<session id from /guard/input>\"
+    \"session_id\": \"<session_id from /v1/guard/input>\"
   }"
 ```
 
-This evaluates the response for issues like:
+If `action == "block"`, do not return the model output verbatim. Typical patterns are: retry with a safer prompt, or return a fixed fallback.
 
-- Prompt leaks
-- PII in outputs
-- Topic drift outside your allowed scope
+## Use the Python client
 
-If `action` is `"block"`, do not display the response to the user. You can optionally re-prompt your LLM or return a fallback message.
-
----
-
-## 5. Using the Python client
-
-You can also integrate Defend via the Python client instead of raw HTTP. The pattern looks like this:
+The Python `Client` is a thin HTTP wrapper for the `/v1` API.
 
 ```python
 from defend import Client
 
-guard = Client(api_key="...", provider="claude", modules=["injection", "pii"])
+guard = Client(api_key="dev", base_url="http://localhost:8000")
 
-user_message = "Tell me how to bypass our security controls."
+in_res = guard.input("Tell me how to bypass our security controls.")
+if in_res.blocked:
+    raise RuntimeError(in_res.error_response())
 
-result = guard.input(user_message)
-if result.blocked:
-    return result.error_response()
+raw_llm_output = your_llm_call("...")  # unchanged
 
-response = your_llm_call(user_message)  # your existing LLM call
-
-result = guard.output(response)
-if result.blocked:
-    return result.error_response()
+out_res = guard.output(raw_llm_output, session_id=in_res.session_id)
+if out_res.blocked:
+    raise RuntimeError(out_res.error_response())
 ```
 
-This mirrors the HTTP flow using the same underlying guardrail logic.
+## Next steps
 
----
-
-## 6. Running tests and CI locally
-
-To mirror what GitHub Actions runs in CI:
-
-- **Run all tests**:
-
-```bash
-pytest
-```
-
-- **Run only unit and integration tests** (what the main tests job runs):
-
-```bash
-pytest -m "unit or integration"
-```
-
-- **Run only API (HTTP-level) tests**:
-
-```bash
-export API_BASE_URL="http://127.0.0.1:8000"
-pytest -m api
-```
-
-The CI pipeline on GitHub Actions runs three jobs:
-
-- `lint`: runs Ruff on `defend_api`, `client`, and `tests`.
-- `tests`: runs `pytest -m "unit or integration"` with coverage.
-- `api-tests`: starts the FastAPI app and runs `pytest -m api` against it.
-
-All three jobs must pass for a pull request into `main` to be merged.
-
----
-
-## 7. Next steps
-
-- For a deeper view of **how the pipeline works under the hood**, read `ARCHITECTURE.md`.
-- For **detailed configuration examples** (modules, thresholds, CI usage), see `CONFIGURATION.md`.
-- For contributing guidelines or roadmap (if present), see the relevant docs linked from `README.md`.
+- `CONFIGURATION.md`: enable modules + provider chaining safely.
+- `ARCHITECTURE.md`: understand the pipeline layers and multi-turn scoring.
 

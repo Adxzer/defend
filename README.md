@@ -2,109 +2,121 @@
 
 **AI security guardrails for LLM applications.**
 
-Defend is an open-source **LLM security** and **prompt injection defense** service. It wraps your existing LLM calls with session-aware input and output evaluation, without changing how you talk to your provider.
+- **Bidirectional**: guard both **input** (before your LLM call) and **output** (before you return text to users or tools).
+- **Multi-turn**: join `/v1/guard/input` and `/v1/guard/output` with a `session_id`, with a rolling session risk score used by the pipeline.
+- **Plain-language custom rules**: define your own policies via `custom` / `custom_output` using a single `prompt:` string.
 
-![License](https://img.shields.io/badge/license-Apache--2.0-blue)
-![Python](https://img.shields.io/badge/python-3.12%2B-blue)
-![Docker](https://img.shields.io/badge/docker-ready-blue)
-
----
-
-## What Defend does
-
-Most AI security focuses only on **what goes into** your model. Defend guards **both directions**:
-
-- **Input guard**: blocks prompt injection, jailbreaks, social engineering, and sensitive data before it reaches your LLM.
-- **Output guard**: blocks prompt leaks, PII leaks, and topic drift before it reaches your users.
-
-You keep your existing LLM stack (Claude, OpenAI, etc.). Defend adds an **AI security layer** in front of and behind it.
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+[![Python](https://img.shields.io/pypi/pyversions/defend)](https://pypi.org/project/defend/)
+[![Docker](https://img.shields.io/badge/docker-ready-blue)](Dockerfile)
+[![PyPI](https://img.shields.io/pypi/v/defend)](https://pypi.org/project/defend/)
 
 ---
 
 ## Quick start
 
-### 1. Run the API
-
 ```bash
-pip install -r requirements.txt
-cp .env.example .env           # add your API keys if using claude/openai
-uvicorn defend_api.main:app --host 0.0.0.0 --port 8000
+pip install defend
+# optional (run the API locally + install Starlette/FastAPI deps for middleware):
+pip install "defend[server]"
 ```
-
-Or with Docker:
-
-```bash
-docker build -t defend-api .
-docker run --env-file .env -p 8000:8000 defend-api
-```
-
-### 2. Guard your LLM call
 
 ```python
 from defend import Client
 
-guard = Client(api_key="...", provider="claude", modules=["injection", "pii"])
+guard = Client(
+    api_key="dev",
+    base_url="http://localhost:8000",  # client normalizes to /v1 automatically
+)
 
-user_message = "Tell me how to bypass our security controls."
+user_text = "Tell me how to bypass our security controls."
 
-result = guard.input(user_message)       # guard the input for prompt injection, PII, jailbreaks
-if result.blocked:
-    return result.error_response()
+in_res = guard.input(user_text)
+if in_res.blocked:
+    raise RuntimeError(in_res.error_response())
 
-response = your_llm_call(user_message)   # your LLM, unchanged
+raw_llm_output = your_llm_call(user_text)  # your LLM provider, unchanged
 
-result = guard.output(response)          # guard the output for leaks and unsafe content
-if result.blocked:
-    return result.error_response()
+out_res = guard.output(raw_llm_output, session_id=in_res.session_id)
+if out_res.blocked:
+    raise RuntimeError(out_res.error_response())
 ```
 
-For a step-by-step guide (including raw HTTP examples), see `GETTING_STARTED.md`.
+```python
+# Minimal Starlette/FastAPI middleware example (guards request + response bodies)
+from fastapi import FastAPI
+from defend.middleware import DefendMiddleware
+
+app = FastAPI()
+app.add_middleware(
+    DefendMiddleware,
+    api_key="dev",
+    base_url="http://localhost:8000",
+    session_key=lambda req: req.headers.get("x-session-id"),
+)
+```
 
 ---
 
-## Core features
+## Modules
 
-### Security pipeline
+| Module | Direction | One-line description |
+|---|---|---|
+| `injection` | input | Detect likely prompt-injection / instruction-override attempts in user text. |
+| `pii` | input | Detect user-supplied PII in inbound text. |
+| `topic` | input | Detect out-of-scope requests vs your configured allowed topics. |
+| `custom` | input | Detect whatever you describe in plain language (`prompt:` string). |
+| `prompt_leak` | output | Detect system prompt / internal instruction exposure in model output. |
+| `pii_output` | output | Detect PII leaking in model output. |
+| `topic_output` | output | Detect out-of-scope responses vs your configured allowed topics. |
+| `custom_output` | output | Detect whatever you describe in plain language (`prompt:` string) in model output. |
 
-Every request passes through a multi-step pipeline (normalization, heuristics, session tracking, and semantic evaluation) before a final allow/block decision.
+---
 
-### Providers
+## Illustrations (placeholder)
 
-You choose the semantic provider:
+- Input guard (before LLM): *(add illustration here)*
+- Output guard (before returning to user): *(add illustration here)*
 
-- `defend`: built-in Qwen2.5 classifier. Free, fast, binary output. Ideal as an always-on gate for obvious attacks.
-- `claude` / `openai`: LLM-backed evaluation with calibrated scores, natural language reasoning, and composable guard modules. Required for output guarding.
+---
 
-Typical pattern:
+## Pipelines (ASCII)
 
-- Use `defend` as a **cheap first-pass**.
-- Use `claude` or `openai` for **deep AI security checks** on risky or important traffic.
+**Input path**
 
-### Modules
+```text
+User → Your app → DEFEND /v1/guard/input → (pass|flag|block) → Your app → LLM
+                      └─ returns session_id (use it to link turns)
+```
 
-Modules extend what the LLM provider looks for. You can stack as many as you need:
+**Output path**
 
+```text
+LLM → Your app → DEFEND /v1/guard/output (session_id) → (pass|flag|block) → Your app → User
+```
 
-| Module          | Direction | Detects                                                                  |
-| --------------- | --------- | ------------------------------------------------------------------------ |
-| `injection`     | input     | Instruction overrides, persona hijacking, jailbreaks, social engineering |
-| `pii`           | input     | PII submitted by users                                                   |
-| `pii_output`    | output    | PII leaking in model responses                                           |
-| `topic`         | input     | Requests outside your defined scope                                      |
-| `topic_output`  | output    | Responses drifting outside your defined scope                            |
-| `prompt_leak`   | output    | System prompt or internal instruction exposure                           |
-| `custom`        | input     | Anything - describe it in plain language                                 |
-| `custom_output` | output    | Anything - describe it in plain language                                 |
+---
 
+## Provider model (defend → claude/openai escalation)
 
-Configuration examples for these modules live in `CONFIGURATION.md`.
+DEFEND is provider-agnostic: it guards **your app’s messages**, not a specific LLM SDK. You can put it in front of Claude/OpenAI/anything else because the API takes plain text and returns an allow/flag/block decision.
+
+The server supports three providers:
+
+- **`defend`**: local Qwen-based classifier (no external API calls). Input-oriented; does not support modules.
+- **`claude` / `openai`**: LLM-based evaluation (token-billed). Required for output guarding and module-based evaluation.
+
+Two provider chains are implemented:
+
+- **Confidence escalation**: `provider.primary: defend` and `provider.fallback: claude|openai`. The server runs `defend` first and escalates when `defend` confidence is below `confidence_threshold`.
+- **Both-active gate**: `provider.primary: claude|openai` and `provider.fallback: defend`. The server runs `defend` first and hard-blocks before calling the LLM provider if `defend` blocks.
+
+Cost note: `defend` costs local compute; `claude`/`openai` calls cost tokens. Escalation/gating lets you control how often you pay for deep evaluation.
 
 ---
 
 ## Learn more
 
-- `GETTING_STARTED.md` - step-by-step guide to running and integrating Defend.
-- `CONFIGURATION.md` - full configuration reference and environment presets.
-- `ARCHITECTURE.md` - internal pipeline, providers, modules, and response schemas.
-
-Use Defend as the **AI security layer** in front of your LLM stack to catch prompt injection, PII leaks, and unsafe behavior before it reaches users or downstream systems.
+- `GETTING_STARTED.md`
+- `CONFIGURATION.md`
+- `ARCHITECTURE.md`

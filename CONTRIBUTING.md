@@ -1,37 +1,39 @@
 # Contributing
 
-## Git workflow
+This repo is small; keep contributions small and testable. If you’re changing guard behavior, include an example request/response in the PR description so reviewers can reason about impact.
 
-- The `main` branch should always be green and deployable.
-- All changes should be developed on short-lived feature branches created from `main`, for example:
-  - `feature/add-api-tests`
-  - `fix/guard-session-bug`
-- Open a pull request from your feature branch into `main`.
-- Wait for CI to complete and ensure all required checks are green before merging:
-  - `lint`
-  - `tests`
-  - `api-tests`
+## Workflow
 
-## Running checks locally
+- Branch from `main`.
+- Prefer one-purpose branches (feature or fix).
+- Open a PR and keep it green.
 
-- Lint:
+## Local checks (what CI enforces)
+
+Lint:
 
 ```bash
-ruff check defend_api client tests
+ruff check defend_api defend tests
 ```
 
-- Unit and integration tests:
+Unit + integration tests:
 
 ```bash
 pytest -m "unit or integration"
 ```
 
-- API tests (with the API running locally):
+API tests (requires a running API):
 
 ```bash
-export API_BASE_URL="http://127.0.0.1:8000"
+set API_BASE_URL=http://127.0.0.1:8000
 pytest -m api
 ```
 
-GitHub branch protection rules should be configured so that `lint`, `tests`, and `api-tests` must pass before merging into `main`.
+## Docs changes
+
+Docs are treated as part of the product:
+
+- Don’t claim behavior you didn’t verify in code.
+- Prefer “what to do” over “what it is”.
+- Keep examples executable (or copy/pasteable) and consistent with `/v1/*` paths.
 

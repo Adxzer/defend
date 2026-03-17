@@ -1,209 +1,78 @@
 # Architecture
 
-Defend is a FastAPI microservice that adds an **AI security guardrail layer** in front of and behind your LLMs.
+This is a code-first description of how the DEFEND service behaves today. If you want the “how do I wire this into my app” path, start with `GETTING_STARTED.md`.
 
-- Every **user request** is evaluated before it reaches your LLM.
-- Every **LLM response** is evaluated before it reaches your user.
+## What DEFEND is
 
-This document is written for **developers** and **security engineers** who want to understand how Defend works and where to extend it.
+DEFEND is a FastAPI service with two public guard endpoints:
 
----
+- `/v1/guard/input`: evaluate inbound text before you call your LLM.
+- `/v1/guard/output`: evaluate outbound text before you return it.
 
-## High-level flow
+The core contract is explicit: you link turns with `session_id`.
 
-At a high level, Defend sits between your application and your LLM provider:
+## End-to-end flow (ASCII)
 
-```mermaid
-flowchart LR
-  userApp["Your application"]
-  defendApi["Defend API (/guard/input, /guard/output)"]
-  llmProvider["LLM provider (Claude / OpenAI)"]
-
-  userApp -->|"user message"| defendApi
-  defendApi -->|"guarded input or block"| userApp
-  userApp -->|"LLM call (if allowed)"| llmProvider
-  llmProvider -->|"raw LLM response"| userApp
-  userApp -->|"response for evaluation"| defendApi
-  defendApi -->|"guarded output or block"| userApp
+```text
+User → App → /v1/guard/input → (pass|flag|block, session_id) → App → LLM
+LLM  → App → /v1/guard/output (session_id) → (pass|flag|block) → App → User
 ```
 
-- `/guard/input` evaluates the **incoming message** and returns an action plus a `session_id`.
-- `/guard/output` evaluates the **LLM response**, optionally using the earlier input via `session_id`.
+## Pipeline layers (input path)
 
-For HTTP details, see the API section in `README.md` and `GETTING_STARTED.md`.
+Input evaluation runs a layered pipeline (`defend_api/pipeline/orchestrator.py`):
 
----
+- **Normalization**: text normalization and cleanup.
+- **Intent fast-pass**: short-circuit obviously benign inputs when enabled.
+- **Regex heuristics**: pattern-based risk signals.
+- **Provider decision**: a semantic decision via `defend`, `claude`, or `openai` (optionally chained).
+- **Session accumulation (when `session_id` is present)**: updates a rolling session score and can block once enough risky turns are observed.
 
-## The safety pipeline
+Session accumulation implementation details:
 
-Internally, Defend runs each request through a multi-layer pipeline before the semantic provider makes a decision.
+- Rolling score uses exponential decay (`alpha = 0.7`) over prior state.
+- The gate is `SESSION_BLOCK_THRESHOLD` risky turns (default is `3` via settings).
 
-| Layer | Name | What it does |
-|---|---|---|
-| L1 | Normalization | Cleans and normalizes text (Unicode, homoglyphs, etc.) |
-| L2 | Intent fast-pass | Quickly exits obvious benign inputs using a lightweight model |
-| L3 | Regex heuristics | Applies pattern-based checks from `defend_api.patterns.DEFAULT_PATTERNS` |
-| L4 | Embedding anomaly | Flags out-of-distribution inputs via embedding distance to a clean-traffic centroid |
-| L5 | Session accumulator | Maintains a rolling risk score across conversation turns |
-| L6 | Provider layer | Makes the final semantic decision using `defend`, `claude`, or `openai` |
+## Providers and chaining
 
-All requests go through L1-L5 in order, then L6 decides whether to **pass**, **flag**, **block**, or suggest a retry.
+Providers are the L6 semantic decision engines (`defend_api/providers/`).
 
-Code entry point: `defend_api.pipeline.orchestrator.run_pipeline(text, session_id)`. It returns an `OrchestratorResult` containing the final action, per-layer diagnostics, and provider metadata.
+Implemented providers:
 
----
+- `defend`: local Qwen-based classifier (no external API calls). Input-oriented; does not support modules.
+- `claude` / `openai`: LLM-backed evaluation; supports modules and is required for output guarding.
 
-## Providers
+Provider chaining is implemented in `defend_api/providers/orchestrator.py`:
 
-Providers live in `defend_api/providers/`. Drop a folder in with a `BaseProvider` subclass and it's discovered automatically on startup - no registry edits.
-```
-providers/
-  base.py          # BaseProvider, ProviderResult
-  __init__.py      # auto-discovery + get_provider()
-  orchestrator.py  # gate logic
-  defend/
-  claude/
-  openai/
-```
-
-### BaseProvider interface
-```python
-class BaseProvider(ABC):
-    name: str
-    supports_modules: bool = False
-
-    async def evaluate(
-        self,
-        text: str,
-        session_id: Optional[str] = None,
-        modules: list[BaseModule] | None = None,
-    ) -> ProviderResult: ...
-```
-
-`ProviderResult` carries `action` (`pass` / `flag` / `block`), `provider`, and optional `score`, `reason`, `modules_triggered`, `latency_ms`.
-
-### Provider options
-
-**`defend`** - wraps the `Adaxer/defend` Qwen2.5 classifier. Binary output, no modules, input-only. Fast, free, no external calls. `score` and `reason` are always `null` in responses.
-
-**`claude`** - Anthropic API with structured JSON output enforced via tool use. Supports all input and output modules. Required for output guarding.
-
-**`openai`** - OpenAI API with `response_format: json_object`. Same module model as Claude.
-
-### Gate logic (both-active mode)
-
-When `primary` is an LLM provider and `fallback: defend` is set:
-
-1. `defend` runs first on every input request.
-2. If defend says `block` → stop. LLM provider is never called.
-3. If defend says `pass` → LLM provider runs with active modules.
-4. If the LLM call fails → fall back to defend's result, log the failure.
-
-Output evaluation always uses an LLM provider. Setting `defend` as an output provider is a config error caught on startup.
-
----
+- **Confidence escalation** (`primary: defend`, `fallback: claude|openai`): run local classify first; call the LLM provider only when confidence is below `confidence_threshold`.
+- **Both-active gate** (`primary: claude|openai`, `fallback: defend`): run `defend` first; hard-block before calling the LLM provider if it blocks.
 
 ## Modules
 
-Modules live in `defend_api/modules/`. They follow the same drop-in discovery pattern as providers.
-```
-modules/
-  base.py                     # BaseModule
-  __init__.py                 # auto-discovery, direction-aware getters
-  injection/module.py
-  pii/module.py
-  pii/output_module.py
-  topic/module.py
-  topic/output_module.py
-  prompt_leak/output_module.py
-  custom/module.py
-  custom/output_module.py
-```
+Modules live in `defend_api/modules/` and are direction-scoped:
 
-### BaseModule interface
-```python
-class BaseModule(ABC):
-    name: str
-    description: str
-    direction: Literal["input", "output", "both"] = "input"
+- Input: `injection`, `pii`, `topic`, `custom`
+- Output: `prompt_leak`, `pii_output`, `topic_output`, `custom_output`
 
-    def system_prompt(self) -> str: ...
-```
+LLM providers compose modules by adding their `system_prompt()` fragments to the evaluation prompt. The local `defend` provider ignores modules.
 
-The registry exposes `get_modules_for_input()` and `get_modules_for_output()` - filtering by `direction` - so the orchestrator always passes the right modules to the right evaluation.
+## Sessions: two uses of `session_id`
 
-### Built-in modules
+The codebase uses `session_id` in two distinct places:
 
-| Module | Direction | Detects |
-|---|---|---|
-| `injection` | input | Overrides, persona hijacking, jailbreaks, social engineering |
-| `pii` | input | PII submitted in user requests |
-| `pii_output` | output | PII leaking in model responses |
-| `topic` | input | Requests outside configured allowed topics |
-| `topic_output` | output | Responses drifting outside configured allowed topics |
-| `prompt_leak` | output | System prompt or internal instruction exposure |
-| `custom` | input | User-defined detection in plain language |
-| `custom_output` | output | User-defined detection in plain language |
+- **Pipeline session state** (`defend_api/session.py` + `defend_api/pipeline/session_accumulator.py`): rolling session risk.
+- **Input context for output** (`defend_api/guard_session.py`): stores input context for `/v1/guard/output`.
 
-Modules compose additively - each contributes a `system_prompt()` fragment appended to the LLM evaluation prompt.
+Both are in-memory and per-process. If you run multiple workers, context is not shared unless you add a shared backend.
 
----
+## Response schema (high level)
 
-## Guard sessions
+Both `/v1/guard/input` and `/v1/guard/output` return a `GuardResult` with:
 
-`/guard/input` and `/guard/output` share context through an in-memory session store (`defend_api.guard_session.GuardSessionStore`).
+- `action`: `pass | flag | block | retry_suggested`
+- `session_id`
+- `decided_by`: `defend | claude | openai`
+- `score` / `reason` (nullable)
+- `modules_triggered`
 
-**On `/guard/input`:**
-- Runs the full L1-L6 pipeline for input evaluation.
-- Saves `{ text, provider, score }` in memory under `session_id` with a configurable TTL (default 300s).
-- Returns a `GuardResult` with `direction: "input"` and the `session_id`.
-
-**On `/guard/output`:**
-- Looks up input context from the in-memory store using `session_id` (if provided).
-- Runs output evaluation using an LLM provider and output modules.
-- Returns a `GuardResult` with `direction: "output"` and `context: "session"` when input context was available, `"none"` when not.
-
-Without a `session_id`, output evaluation is stateless. It still works, but the LLM provider has no knowledge of what was asked. Session state is per-process and non-durable; restarts or multiple processes will not share this context.
-
----
-
-## Response schemas
-
-### `/guard/input` and `/guard/output`
-```python
-class GuardResult(BaseModel):
-    action:            Literal["pass", "flag", "block", "retry_suggested"]
-    session_id:        str
-    decided_by:        str                    # "defend" | "claude" | "openai"
-    direction:         Literal["input", "output"]
-    score:             Optional[float]        # null when decided_by == "defend"
-    reason:            Optional[str]          # null when decided_by == "defend"
-    modules_triggered: list[str]
-    context:           Literal["session", "none"]
-    latency_ms:        int
-
-    @property
-    def blocked(self) -> bool: ...
-
-    def error_response(self, message: str = None) -> dict: ...
-```
-
----
-
-## Adding a provider or module
-
-**New provider:**
-1. Create `defend_api/providers/<name>/provider.py`.
-2. Define a class inheriting `BaseProvider`.
-3. Restart. The registry discovers it automatically.
-
-**New module:**
-1. Create `defend_api/modules/<name>/module.py` (input) or `output_module.py` (output).
-2. Define a class inheriting `BaseModule`. Set `direction` correctly.
-3. Restart. The registry discovers it automatically.
-
-No other files change in either case.
-
----
-
-For config reference, see `defend.config.yaml`. Every option is documented inline.
+See `CONFIGURATION.md` for how provider chains, thresholds, and guard settings are configured.
