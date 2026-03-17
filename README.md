@@ -17,11 +17,11 @@
 
 ```bash
 pip install defend
-# optional (run the API locally + install FastAPI server deps):
+# optional (run the API locally + install FastAPI server deps)
 pip install "defend[server]"
 ```
 
-To configure and run a local server using the web configurator:
+To configure and run a local DEFEND server using the web configurator:
 
 ```bash
 pip install "defend[server]" \
@@ -29,7 +29,7 @@ pip install "defend[server]" \
   && defend serve
 ```
 
-Using the Python SDK:
+### Use the Python SDK
 
 ```python
 from defend import Client
@@ -50,20 +50,6 @@ raw_llm_output = your_llm_call(user_text)  # your LLM provider, unchanged
 out_res = guard.output(raw_llm_output, session_id=in_res.session_id)
 if out_res.blocked:
     raise RuntimeError(out_res.error_response())
-```
-
-```python
-# Minimal Starlette/FastAPI middleware example (guards request + response bodies)
-from fastapi import FastAPI
-from defend.middleware import DefendMiddleware
-
-app = FastAPI()
-app.add_middleware(
-    DefendMiddleware,
-    api_key="dev",
-    base_url="http://localhost:8000",
-    session_key=lambda req: req.headers.get("x-session-id"),
-)
 ```
 
 ---
