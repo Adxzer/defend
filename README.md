@@ -7,9 +7,9 @@
 - **Plain-language custom rules**: define your own policies via `custom` / `custom_output` using a single `prompt:` string.
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
-[![Python](https://img.shields.io/pypi/pyversions/defend)](https://pypi.org/project/defend/)
+[![Python](https://img.shields.io/badge/python-3.12%2B-blue)](https://pypi.org/project/defend/)
 [![Docker](https://img.shields.io/badge/docker-ready-blue)](Dockerfile)
-[![PyPI](https://img.shields.io/pypi/v/defend)](https://pypi.org/project/defend/)
+[![PyPI](https://img.shields.io/badge/pypi-0.1.0-blue)](https://pypi.org/project/defend/)
 
 ---
 
