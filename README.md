@@ -20,14 +20,6 @@ pip install defend
 pip install "defend[server]"
 ```
 
-To configure and run a local Defend server using the web configurator:
-
-```bash
-pip install "defend[server]" \
-  && defend init --config-token "<TOKEN_FROM_WEBSITE>" \
-  && defend serve
-```
-
 ### Use the Python SDK
 
 ```python
