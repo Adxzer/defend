@@ -7,7 +7,7 @@ from .models.defend_qwen import get_defend_classifier
 from .models.intent import get_intent_classifier
 from .models.perplexity import get_perplexity_scorer
 from .providers.orchestrator import get_provider_orchestrator
-from .routers import guard, health
+from .routers import guard, health, sessions
 
 
 def create_app() -> FastAPI:
@@ -20,10 +20,13 @@ def create_app() -> FastAPI:
         version="0.1.0",
     )
 
-    app.include_router(health.router)
-    app.include_router(guard.router)
+    # v1 routes (current)
+    app.include_router(health.router, prefix="/v1")
+    app.include_router(guard.router, prefix="/v1")
+    app.include_router(sessions.router, prefix="/v1")
 
-    Instrumentator().instrument(app).expose(app, include_in_schema=False)
+    # Expose metrics under /v1 to match the API versioning scheme.
+    Instrumentator().instrument(app).expose(app, endpoint="/v1/metrics", include_in_schema=False)
 
     logger = get_logger(__name__)
 

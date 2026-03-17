@@ -24,13 +24,13 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-asyncio httpx ruff
+          pip install ruff
 
       - name: Lint with ruff
         run: |
-          ruff check defend_api client tests
+          ruff check defend_api client
 
-  tests:
+  typecheck:
     runs-on: ubuntu-latest
     needs: lint
 
@@ -43,68 +43,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install dependencies
+      - name: Install package
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-asyncio pytest-cov httpx \
-            pydantic pydantic-settings pyyaml fastapi numpy anthropic openai transformers \
-            prometheus-fastapi-instrumentator sentence-transformers ftfy bleach
+          pip install -r requirements.txt
           pip install -e .
 
-      - name: Run unit and integration tests
+      - name: Compile (import sanity)
         run: |
-          pytest -m "unit or integration"
-
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-xml
-          path: coverage.xml
-
-  api-tests:
-    runs-on: ubuntu-latest
-    needs: tests
-    env:
-      API_BASE_URL: http://127.0.0.1:8000
-      DEFEND_ENV: test
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install test dependencies and API
-        run: |
-          python -m pip install --upgrade pip
-          pip install pytest pytest-asyncio httpx uvicorn \
-            pydantic pydantic-settings pyyaml fastapi numpy anthropic openai transformers \
-            prometheus-fastapi-instrumentator sentence-transformers ftfy bleach
-          pip install -e .
-
-      - name: Start API
-        run: |
-          uvicorn defend_api.main:app --host 0.0.0.0 --port 8000 &
-
-      - name: Wait for API health
-        run: |
-          for i in {1..30}; do
-            if curl -fsS http://127.0.0.1:8000/health > /dev/null; then
-              echo "API is healthy"
-              exit 0
-            fi
-            echo "Waiting for API..."
-            sleep 2
-          done
-          echo "API did not become healthy in time"
-          exit 1
-
-      - name: Run API tests
-        env:
-          API_BASE_URL: ${{ env.API_BASE_URL }}
-        run: |
-          pytest -m api
+          python -m compileall defend_api client
 

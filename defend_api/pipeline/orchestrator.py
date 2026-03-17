@@ -142,7 +142,7 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
             turn_risk += 0.5
 
         turn_score = min(turn_risk, 1.0)
-        session_result = await accumulator.update(session_id, turn_score, settings.SESSION_BLOCK_THRESHOLD)
+        session_result = await accumulator.update(session_id, turn_score, int(settings.SESSION_BLOCK_THRESHOLD))
         session_diag = SessionDiagnostics(
             decision=SessionDecision(session_result.decision),  # type: ignore[arg-type]
             session_score=session_result.session_score,

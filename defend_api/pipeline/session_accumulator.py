@@ -1,14 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Optional
 
-
-@dataclass
-class SessionState:
-    history: List[float]
-    peak_score: float
-    rolling_score: float
+from ..session import SessionState, get_session_backend
 
 
 @dataclass
@@ -19,37 +14,45 @@ class SessionResult:
     turns: int
 
 
-# Per-process, non-durable session storage.
-_SESSION_STATE: Dict[str, SessionState] = {}
-
-
 class SessionAccumulator:
     async def load(self, session_id: str) -> Optional[SessionState]:
-        return _SESSION_STATE.get(session_id)
+        backend = get_session_backend()
+        return await backend.get(session_id)
 
     async def store(self, session_id: str, state: SessionState) -> None:
-        _SESSION_STATE[session_id] = state
+        backend = get_session_backend()
+        await backend.update(state)
 
-    async def update(self, session_id: str, turn_score: float, threshold: float) -> SessionResult:
+    async def clear(self, session_id: str) -> None:
+        backend = get_session_backend()
+        await backend.delete(session_id)
+
+    async def update(self, session_id: str, turn_score: float, threshold: int) -> SessionResult:
         existing = await self.load(session_id)
         if existing is None:
-            history: List[float] = [turn_score]
+            history = [turn_score]
             peak_score = turn_score
             rolling_score = turn_score
+            risky_turns = 1 if turn_score >= 0.5 else 0
         else:
             history = existing.history + [turn_score]
             peak_score = max(existing.peak_score, turn_score)
             # Simple exponential decay on the last state.
             alpha = 0.7
             rolling_score = alpha * existing.rolling_score + (1 - alpha) * turn_score
+            risky_turns = existing.risky_turns + (1 if turn_score >= 0.5 else 0)
 
-        state = SessionState(history=history, peak_score=peak_score, rolling_score=rolling_score)
+        state = SessionState(
+            session_id=session_id,
+            history=history,
+            peak_score=peak_score,
+            rolling_score=rolling_score,
+            risky_turns=risky_turns,
+        )
         await self.store(session_id, state)
 
-        if rolling_score >= threshold:
-            decision = "BLOCK"
-        else:
-            decision = "CONTINUE"
+        # Block once the session has accumulated enough risky turns.
+        decision = "BLOCK" if risky_turns >= threshold else "CONTINUE"
 
         return SessionResult(
             decision=decision,

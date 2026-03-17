@@ -108,6 +108,7 @@ class ClassificationRequest(BaseModel):
     text: str
     session_id: Optional[str] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
+    dry_run: bool = False
 
 
 class ClassificationResponse(BaseModel):
@@ -120,6 +121,7 @@ class ClassificationResponse(BaseModel):
     modules_triggered: List[str] = Field(default_factory=list)
     defend_signal: Optional[str] = None
     latency_ms: Optional[int] = None
+    dry_run: bool = False
 
 
 class GuardInputRequest(BaseModel):

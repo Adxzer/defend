@@ -26,7 +26,9 @@ class Settings(BaseSettings):
     REGEX_BLOCK_THRESHOLD: float = 0.9
     REGEX_FLAG_THRESHOLD: float = 0.6
     PERPLEXITY_BLOCK_THRESHOLD: float = 80.0
-    SESSION_BLOCK_THRESHOLD: float = 0.9
+    # Sessions (L5)
+    SESSION_TTL_SECONDS: int = 1800
+    SESSION_BLOCK_THRESHOLD: int = 3
 
 
 class ProviderConfig(BaseModel):
@@ -45,12 +47,18 @@ class ProviderConfig(BaseModel):
     def validate_fallback(cls, v: Optional[ProviderName], info: Any) -> Optional[ProviderName]:
         if v is None:
             return v
-        if v is not ProviderName.DEFEND:
-            raise ValueError("provider.fallback, when set, must be 'defend'")
         primary = info.data.get("primary")
-        if primary not in {ProviderName.CLAUDE, ProviderName.OPENAI}:
-            raise ValueError("provider.fallback is only valid when provider.primary is 'claude' or 'openai'")
-        return v
+        if v is ProviderName.DEFEND:
+            if primary not in {ProviderName.CLAUDE, ProviderName.OPENAI}:
+                raise ValueError("provider.fallback='defend' is only valid when provider.primary is 'claude' or 'openai'")
+            return v
+        if v in {ProviderName.CLAUDE, ProviderName.OPENAI}:
+            if primary is not ProviderName.DEFEND:
+                raise ValueError(
+                    "provider.fallback='claude'/'openai' is only valid when provider.primary is 'defend' (confidence escalation)"
+                )
+            return v
+        raise ValueError("provider.fallback, when set, must be one of 'defend', 'claude', or 'openai'")
 
 
 class TopicModuleConfig(BaseModel):
@@ -128,7 +136,15 @@ class DefendConfig(BaseModel):
     api_keys: ApiKeysConfig = ApiKeysConfig()
     modules: Optional[list[Any]] = None
     thresholds: ThresholdsConfig = ThresholdsConfig()
+    confidence_threshold: float = 0.7
     guards: GuardsConfig = GuardsConfig()
+
+    @field_validator("confidence_threshold")
+    @classmethod
+    def validate_confidence_threshold(cls, v: float) -> float:
+        if not (0.0 <= v <= 1.0):
+            raise ValueError("confidence_threshold must be between 0 and 1 (inclusive)")
+        return v
 
 
 @lru_cache(maxsize=1)
