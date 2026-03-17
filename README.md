@@ -6,10 +6,10 @@
 - **Multi-turn**: join `/v1/guard/input` and `/v1/guard/output` with a `session_id`, with a rolling session risk score used by the pipeline.
 - **Plain-language custom rules**: define your own policies via `custom` / `custom_output` using a single `prompt:` string.
 
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.12%2B-blue)](https://pypi.org/project/defend/)
-[![Docker](https://img.shields.io/badge/docker-ready-blue)](Dockerfile)
-[![PyPI](https://img.shields.io/badge/pypi-0.1.0-blue)](https://pypi.org/project/defend/)
+[License](LICENSE)
+[Python](https://pypi.org/project/defend/)
+[Docker](Dockerfile)
+[PyPI](https://pypi.org/project/defend/)
 
 ---
 
@@ -21,7 +21,7 @@ pip install defend
 pip install "defend[server]"
 ```
 
-To configure and run a local DEFEND server using the web configurator:
+To configure and run a local Defend server using the web configurator:
 
 ```bash
 pip install "defend[server]" \
@@ -56,58 +56,77 @@ if out_res.blocked:
 
 ## Modules
 
-| Module | Direction | One-line description |
-|---|---|---|
-| `injection` | input | Detect likely prompt-injection / instruction-override attempts in user text. |
-| `pii` | input | Detect user-supplied PII in inbound text. |
-| `topic` | input | Detect out-of-scope requests vs your configured allowed topics. |
-| `custom` | input | Detect whatever you describe in plain language (`prompt:` string). |
-| `prompt_leak` | output | Detect system prompt / internal instruction exposure in model output. |
-| `pii_output` | output | Detect PII leaking in model output. |
-| `topic_output` | output | Detect out-of-scope responses vs your configured allowed topics. |
-| `custom_output` | output | Detect whatever you describe in plain language (`prompt:` string) in model output. |
+
+| Module          | Direction | One-line description                                                               |
+| --------------- | --------- | ---------------------------------------------------------------------------------- |
+| `injection`     | input     | Detect likely prompt-injection / instruction-override attempts in user text.       |
+| `pii`           | input     | Detect user-supplied PII in inbound text.                                          |
+| `topic`         | input     | Detect out-of-scope requests vs your configured allowed topics.                    |
+| `custom`        | input     | Detect whatever you describe in plain language (`prompt:` string).                 |
+| `prompt_leak`   | output    | Detect system prompt / internal instruction exposure in model output.              |
+| `pii_output`    | output    | Detect PII leaking in model output.                                                |
+| `topic_output`  | output    | Detect out-of-scope responses vs your configured allowed topics.                   |
+| `custom_output` | output    | Detect whatever you describe in plain language (`prompt:` string) in model output. |
+
 
 ---
 
-## Illustrations (placeholder)
+## Pipeline overview
 
-- Input guard (before LLM): *(add illustration here)*
-- Output guard (before returning to user): *(add illustration here)*
-
----
-
-## Pipelines (ASCII)
-
-**Input path**
+### Input guard
 
 ```text
-User → Your app → DEFEND /v1/guard/input → (pass|flag|block) → Your app → LLM
+User → Your app → Defend /v1/guard/input → (pass | flag | block) → Your app → LLM
                       └─ returns session_id (use it to link turns)
 ```
 
-**Output path**
+Input evaluation runs through:
+
+- **Normalization**: cleanup, Unicode fixes, whitespace, etc.
+- **Intent fast-pass**: quickly pass obviously benign text when enabled.
+- **Regex heuristics**: cheap pattern checks for known bad behavior.
+- **Semantic provider decision**: call the configured provider chain (`defend`, `claude`, `openai`, or a combo).
+- **Session accumulation**: roll up risk across turns when you pass a `session_id`.
+
+### Output guard
 
 ```text
-LLM → Your app → DEFEND /v1/guard/output (session_id) → (pass|flag|block) → Your app → User
+LLM → Your app → Defend /v1/guard/output (session_id) → (pass | flag | block) → Your app → User
 ```
+
+Output evaluation:
+
+- Reuses the **same session** via `session_id`.
+- Applies **output modules** (e.g. `prompt_leak`, `pii_output`, `custom_output`).
+- Returns the final `action` for your app to enforce.
+
+See `ARCHITECTURE.md` for a deeper, code-first walkthrough.
 
 ---
 
-## Provider model (defend → claude/openai escalation)
+## Provider & chaining model
 
-DEFEND is provider-agnostic: it guards **your app’s messages**, not a specific LLM SDK. You can put it in front of Claude/OpenAI/anything else because the API takes plain text and returns an allow/flag/block decision.
+Defend separates the **pipeline** (what steps run) from **providers** (who makes the semantic decision).
 
-The server supports three providers:
+Available providers:
 
-- **`defend`**: local Qwen-based classifier (no external API calls). Input-oriented; does not support modules.
-- **`claude` / `openai`**: LLM-based evaluation (token-billed). Required for output guarding and module-based evaluation.
+- `**defend`**: local Qwen-based classifier (no external API calls). Input-oriented; ignores modules.
+- `**claude` / `openai**`: LLM-backed evaluation; required for output guarding and module-based evaluation.
 
-Two provider chains are implemented:
+You choose a provider chain in `defend.config.yaml` (or via the web configurator):
 
-- **Confidence escalation**: `provider.primary: defend` and `provider.fallback: claude|openai`. The server runs `defend` first and escalates when `defend` confidence is below `confidence_threshold`.
-- **Both-active gate**: `provider.primary: claude|openai` and `provider.fallback: defend`. The server runs `defend` first and hard-blocks before calling the LLM provider if `defend` blocks.
+- **Local-only**:
+  - `provider.primary: defend`
+- **Confidence escalation** (cheap first, pay on uncertainty):
+  - `provider.primary: defend`
+  - `provider.fallback: claude | openai`
+- **Both-active gate** (hard local block before LLM):
+  - `provider.primary: claude | openai`
+  - `provider.fallback: defend`
 
 Cost note: `defend` costs local compute; `claude`/`openai` calls cost tokens. Escalation/gating lets you control how often you pay for deep evaluation.
+
+See `CONFIGURATION.md` for concrete config examples.
 
 ---
 
@@ -116,3 +135,4 @@ Cost note: `defend` costs local compute; `claude`/`openai` calls cost tokens. Es
 - `GETTING_STARTED.md`
 - `CONFIGURATION.md`
 - `ARCHITECTURE.md`
+

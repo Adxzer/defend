@@ -1,10 +1,10 @@
 # Architecture
 
-This is a code-first description of how the DEFEND service behaves today. If you want the “how do I wire this into my app” path, start with `GETTING_STARTED.md`.
+This is a code-first description of how the Defend service behaves today. If you want the “how do I wire this into my app” path, start with `GETTING_STARTED.md`.
 
-## What DEFEND is
+## What Defend is
 
-DEFEND is a FastAPI service with two public guard endpoints:
+Defend is a FastAPI service with two public guard endpoints:
 
 - `/v1/guard/input`: evaluate inbound text before you call your LLM.
 - `/v1/guard/output`: evaluate outbound text before you return it.

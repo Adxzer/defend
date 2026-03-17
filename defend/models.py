@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 class GuardResult(BaseModel):
     """
-    Result returned by the DEFEND guard endpoints.
+    Result returned by the Defend guard endpoints.
 
     Mirrors the server's `GuardResult` shape returned from:
     - POST /v1/guard/input

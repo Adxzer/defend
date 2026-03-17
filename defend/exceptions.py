@@ -6,7 +6,7 @@ from typing import Any, Mapping, Optional
 
 class DefendError(Exception):
     """
-    Base error for the DEFEND Python SDK.
+    Base error for the Defend Python SDK.
     """
 
     def __init__(self, message: str, *, details: Any | None = None) -> None:
@@ -16,7 +16,7 @@ class DefendError(Exception):
 
 class DefendConnectionError(DefendError):
     """
-    Raised when the DEFEND server cannot be reached.
+    Raised when the Defend server cannot be reached.
     """
 
 
@@ -33,7 +33,7 @@ class DefendBlockedError(DefendError):
 @dataclass(frozen=True)
 class DefendHTTPError(DefendError):
     """
-    Raised for non-2xx HTTP responses from the DEFEND API.
+    Raised for non-2xx HTTP responses from the Defend API.
     """
 
     status_code: int

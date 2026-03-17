@@ -1,10 +1,10 @@
 """
-DEFEND Python SDK and API.
+Defend Python SDK and API.
 
 Base install (`pip install defend`) provides:
-- `Client` / `AsyncClient` for calling a running DEFEND server.
+- `Client` / `AsyncClient` for calling a running Defend server.
 - Optional framework middleware helpers with lazy imports.
-- `create_app` for embedding the DEFEND FastAPI service directly.
+- `create_app` for embedding the Defend FastAPI service directly.
 """
 
 from .client import AsyncClient, Client

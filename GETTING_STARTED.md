@@ -1,6 +1,6 @@
 # Getting Started
 
-Goal: get a working DEFEND API locally, then integrate it (HTTP or Python). This doc is intentionally concrete; it avoids feature claims you can’t verify by running the code.
+Goal: get a working Defend API locally, then integrate it (HTTP or Python). This doc is intentionally concrete; it avoids feature claims you can’t verify by running the code.
 
 ## Prerequisites
 
@@ -21,7 +21,7 @@ pip install "defend[server]"
 
 The API expects a `defend.config.yaml` in the project root (the server loads it on startup).
 
-The recommended one-liner (using a config token generated from the DEFEND preset website) is:
+The recommended one-liner (using a config token generated from the Defend preset website) is:
 
 ```bash
 pip install "defend[server]" \

@@ -8,7 +8,7 @@ The API loads `defend.config.yaml` from the repository root at startup.
 
 In most cases you will not hand-edit this file. Instead, you:
 
-- use the DEFEND website to select providers, modules, and settings, then
+- use the Defend website to select providers, modules, and settings, then
 - copy the generated one-liner, which includes a compressed `--config-token`, and run:
 
 ```bash

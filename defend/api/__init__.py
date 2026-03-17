@@ -1,8 +1,8 @@
 """
-Internal DEFEND API namespace.
+Internal Defend API namespace.
 
 This module exposes the FastAPI server under `defend.api`, which is the
-canonical import path for the DEFEND microservice.
+canonical import path for the Defend microservice.
 """
 
 from .main import create_app

@@ -24,7 +24,7 @@ def _normalize_base_url(base_url: str) -> str:
 
 class Client:
     """
-    Synchronous HTTP client for the DEFEND API.
+    Synchronous HTTP client for the Defend API.
 
     The base installation intentionally depends only on `httpx` and `pydantic`.
     """
@@ -44,7 +44,7 @@ class Client:
         Create a new client.
 
         Args:
-            api_key: DEFEND API key (sent as `Authorization: Bearer ...`). The current
+            api_key: Defend API key (sent as `Authorization: Bearer ...`). The current
                 server may not enforce auth, but the header is included for forward-compat.
             base_url: Root URL of the server, with or without `/v1`.
             provider: Reserved for future server-side configuration; currently sent as metadata.
@@ -90,7 +90,7 @@ class Client:
         try:
             resp = self._client.request(method, path, json=json_body)
         except httpx.RequestError as exc:  # pragma: no cover - environment dependent
-            raise DefendConnectionError(f"Failed to connect to DEFEND at {self._base_url}", details=str(exc)) from exc
+            raise DefendConnectionError(f"Failed to connect to Defend at {self._base_url}", details=str(exc)) from exc
 
         if resp.status_code >= 400:
             payload: Any
@@ -99,7 +99,7 @@ class Client:
             except Exception:
                 payload = resp.text
             raise DefendHTTPError(
-                f"DEFEND API error calling {method} {path}",
+                f"Defend API error calling {method} {path}",
                 status_code=resp.status_code,
                 payload=payload,
                 headers=dict(resp.headers),
@@ -178,7 +178,7 @@ class Client:
 
 class AsyncClient:
     """
-    Asynchronous HTTP client for the DEFEND API.
+    Asynchronous HTTP client for the Defend API.
     """
 
     def __init__(
@@ -227,7 +227,7 @@ class AsyncClient:
         try:
             resp = await self._client.request(method, path, json=json_body)
         except httpx.RequestError as exc:  # pragma: no cover - environment dependent
-            raise DefendConnectionError(f"Failed to connect to DEFEND at {self._base_url}", details=str(exc)) from exc
+            raise DefendConnectionError(f"Failed to connect to Defend at {self._base_url}", details=str(exc)) from exc
 
         if resp.status_code >= 400:
             payload: Any
@@ -236,7 +236,7 @@ class AsyncClient:
             except Exception:
                 payload = resp.text
             raise DefendHTTPError(
-                f"DEFEND API error calling {method} {path}",
+                f"Defend API error calling {method} {path}",
                 status_code=resp.status_code,
                 payload=payload,
                 headers=dict(resp.headers),
