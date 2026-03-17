@@ -47,7 +47,17 @@ class DefendQwenClassifier:
     def classify(self, text: str) -> DefendOutput:
         # Sliding-window over tokens to handle long inputs; we take the max
         # injection probability over all windows.
-        encoded = self._tokenizer(text, return_tensors="pt", truncation=False)
+        settings = get_settings()
+        max_input_tokens = int(getattr(settings, "DEFEND_MAX_INPUT_TOKENS", 0))
+        if max_input_tokens > 0:
+            encoded = self._tokenizer(
+                text,
+                return_tensors="pt",
+                truncation=True,
+                max_length=max_input_tokens,
+            )
+        else:
+            encoded = self._tokenizer(text, return_tensors="pt", truncation=False)
         input_ids = encoded["input_ids"]
 
         seq_len = input_ids.shape[1]
@@ -61,22 +71,14 @@ class DefendQwenClassifier:
             start += self._stride
 
         max_prob = 0.0
-        for window_ids in windows:
-            outputs = self._model(input_ids=window_ids)
-            # Ensure logits are in a NumPy-friendly float dtype (avoid bf16 issues).
-            logits = (
-                outputs.logits.to(dtype=torch.float32)
-                .detach()
-                .cpu()
-                .numpy()
-            )
-            # Stable softmax; assume binary, index 1 is "injection"
-            max_logits = logits.max(axis=-1, keepdims=True)
-            exp_logits = np.exp(logits - max_logits)
-            probs = exp_logits / exp_logits.sum(axis=-1, keepdims=True)
-            inj_prob = float(probs[..., 1].max())
-            if np.isfinite(inj_prob):
-                max_prob = max(max_prob, inj_prob)
+        with torch.inference_mode():
+            for window_ids in windows:
+                outputs = self._model(input_ids=window_ids)
+                logits = outputs.logits.to(dtype=torch.float32)
+                probs = torch.softmax(logits, dim=-1)
+                inj_prob = float(probs[..., 1].max().item())
+                if np.isfinite(inj_prob):
+                    max_prob = max(max_prob, inj_prob)
 
         # Ensure probability is finite and in [0, 1] for JSON
         max_prob = max(0.0, min(1.0, max_prob)) if np.isfinite(max_prob) else 0.0

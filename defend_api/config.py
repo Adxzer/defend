@@ -29,9 +29,15 @@ class Settings(BaseSettings):
     ANOMALY_THRESHOLD: float = 1.0
     ANOMALY_WARMUP_SAMPLES: int = 100
     ANOMALY_CENTROID_PATH: str = ".defend/anomaly_centroid.npz"
-    # Global input cap
-    MAX_INPUT_CHARS: int = 8000
-    # Sessions (L5)
+
+    # Defend model runtime caps 
+    DEFEND_MAX_INPUT_TOKENS: int = 1024
+
+    # Semantic provider input caps 
+    ANTHROPIC_MAX_INPUT_TOKENS: int = 2048
+    OPENAI_MAX_INPUT_TOKENS: int = 2048
+    
+    # Sessions
     SESSION_TTL_SECONDS: int = 1800
     SESSION_BLOCK_THRESHOLD: int = 3
 

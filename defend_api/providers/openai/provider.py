@@ -7,6 +7,7 @@ from typing import Optional
 import anyio
 from openai import APIStatusError, OpenAI
 
+from ...config import get_settings
 from ..base import BaseProvider, ProviderResult, ProviderUnavailableError
 from ...modules.base import BaseModule
 
@@ -57,6 +58,14 @@ class OpenAIProvider(BaseProvider):
         if modules:
             fragments = [m.system_prompt() for m in modules]
             module_instructions = "\n\n".join(fragments)
+
+        settings = get_settings()
+        max_input_tokens = int(getattr(settings, "OPENAI_MAX_INPUT_TOKENS", 0))
+        if max_input_tokens > 0:
+            # Approximate token cap. If you need exact token truncation, add tiktoken.
+            max_chars = max_input_tokens * 4
+            if len(text) > max_chars:
+                text = text[:max_chars]
 
         try:
             if self._client is None:
