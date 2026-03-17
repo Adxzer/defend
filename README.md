@@ -6,10 +6,9 @@
 - **Multi-turn**: join `/v1/guard/input` and `/v1/guard/output` with a `session_id`, with a rolling session risk score used by the pipeline.
 - **Plain-language custom rules**: define your own policies via `custom` / `custom_output` using a single `prompt:` string.
 
-[License](LICENSE)
-[Python](https://pypi.org/project/defend/)
-[Docker](Dockerfile)
-[PyPI](https://pypi.org/project/defend/)
+![License](https://img.shields.io/badge/license-Apache--2.0-blue)
+![Python](https://img.shields.io/badge/python-3.12%2B-blue)
+![Docker](https://img.shields.io/badge/docker-ready-blue)
 
 ---
 
