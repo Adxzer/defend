@@ -1,6 +1,6 @@
 # Contributing
 
-This repo is small; keep contributions small and testable. If you’re changing guard behavior, include an example request/response in the PR description so reviewers can reason about impact.
+This repo is small; keep contributions small and testable.
 
 ## Workflow
 

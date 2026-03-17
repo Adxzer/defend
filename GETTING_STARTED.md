@@ -19,17 +19,13 @@ pip install "defend[server]"
 
 ## Run the API
 
-The API expects a `defend.config.yaml` in the project root (the server loads it on startup).
-
-The recommended one-liner (using a config token generated from the Defend preset website) is:
+The API expects a `defend.config.yaml` in the project root (the server loads it on startup). Create one from the example in the repo or see `CONFIGURATION.md`, then:
 
 ```bash
-pip install "defend[server]" \
-  && defend init --config-token "<TOKEN_FROM_WEBSITE>" \
-  && defend serve
+defend serve
 ```
 
-You can also run the ASGI app directly:
+Or run the ASGI app directly:
 
 ```bash
 uvicorn defend.api.main:app --host 0.0.0.0 --port 8000
@@ -101,6 +97,31 @@ out_res = guard.output(raw_llm_output, session_id=in_res.session_id)
 if out_res.blocked:
     raise RuntimeError(out_res.error_response())
 ```
+
+## FastAPI middleware
+
+For FastAPI (or Starlette) apps you can add Defend as middleware so request and response bodies are guarded without calling the client in each route. The middleware runs input guard on the request body and output guard on the response body when the content looks like JSON or text.
+
+Requires `defend[server]` (Starlette/FastAPI are included there).
+
+```python
+from fastapi import FastAPI
+from defend.middleware import DefendMiddleware
+
+app = FastAPI()
+app.add_middleware(
+    DefendMiddleware,
+    api_key="dev",
+    base_url="http://localhost:8000",
+    session_key=lambda req: req.headers.get("x-session-id"),
+)
+```
+
+- **api_key**: Sent to the Defend API as `Authorization: Bearer ...`.
+- **base_url**: Defend server URL (client normalizes to `/v1`).
+- **session_key**: Callable that receives the request and returns a `session_id` string or `None`. Use it to link turns for multi-turn session accumulation (e.g. from a header or cookie).
+
+When the input or output guard blocks, the middleware returns `403` with a JSON error payload. For custom handling you can pass an **on_block** callback (see the middleware signature in `defend.middleware`).
 
 ## Next steps
 

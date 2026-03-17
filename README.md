@@ -20,6 +20,12 @@ pip install defend
 pip install "defend[server]"
 ```
 
+To run the API locally, add a `defend.config.yaml` in the project root (see `CONFIGURATION.md` or copy from the repo), then:
+
+```bash
+defend serve
+```
+
 ### Use the Python SDK
 
 ```python
