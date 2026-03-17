@@ -1,0 +1,149 @@
+from __future__ import annotations
+
+import statistics
+import time
+from typing import Any, Dict, List, Optional, Tuple
+
+import typer
+
+from .client import Client
+from .exceptions import DefendError
+
+app = typer.Typer(add_completion=False, help="DEFEND CLI")
+
+
+def _require(extra: str, exc: Exception) -> None:
+    typer.echo(
+        (
+            f"Missing optional dependency. Install with `pip install defend[{extra}]` "
+            f"or add the dependency to your environment.\n\nOriginal error: {exc}"
+        ),
+        err=True,
+    )
+    raise typer.Exit(code=1)
+
+
+@app.command()
+def serve(host: str = "0.0.0.0", port: int = 8000, log_level: str = "info") -> None:
+    """
+    Start the DEFEND server (FastAPI) via uvicorn.
+
+    Requires `defend[server]` to be installed.
+    """
+
+    try:
+        import uvicorn  # type: ignore
+    except Exception as exc:  # pragma: no cover
+        _require("server", exc)
+
+    # Import lazily so base `pip install defend` stays lightweight.
+    try:
+        import defend_api.main  # noqa: F401
+    except Exception as exc:  # pragma: no cover
+        _require("server", exc)
+
+    uvicorn.run("defend_api.main:app", host=host, port=port, log_level=log_level)
+
+
+@app.command()
+def test(
+    api_key: str = typer.Option(..., envvar="DEFEND_API_KEY", help="DEFEND API key"),
+    base_url: str = typer.Option("http://localhost:8000", envvar="DEFEND_BASE_URL", help="Server base URL"),
+) -> None:
+    """
+    Run a built-in smoke test suite against a running DEFEND instance.
+    """
+
+    client = Client(api_key=api_key, base_url=base_url)
+    try:
+        health = client.health()
+        typer.echo(f"health: {health.status} (providers={len(health.providers)})")
+
+        res_in = client.input("Hello world")
+        typer.echo(f"guard.input: action={res_in.action} session_id={res_in.session_id}")
+
+        # Output guarding may require non-defend provider configured server-side; treat errors as informative.
+        try:
+            res_out = client.output("This is a harmless response.", session_id=res_in.session_id)
+            typer.echo(f"guard.output: action={res_out.action} context={res_out.context}")
+        except DefendError as exc:
+            typer.echo(f"guard.output: skipped/failed ({exc})")
+
+        sess = client.get_session(res_in.session_id)
+        typer.echo(f"session: turns={sess.turns} risk_score={sess.risk_score} peak_score={sess.peak_score}")
+
+        client.delete_session(res_in.session_id)
+        typer.echo("session: deleted")
+    finally:
+        client.close()
+
+
+def _precision_recall_f1(tp: int, fp: int, fn: int) -> Tuple[float, float, float]:
+    precision = tp / (tp + fp) if (tp + fp) else 0.0
+    recall = tp / (tp + fn) if (tp + fn) else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
+    return precision, recall, f1
+
+
+@app.command()
+def benchmark(
+    api_key: str = typer.Option(..., envvar="DEFEND_API_KEY", help="DEFEND API key"),
+    base_url: str = typer.Option("http://localhost:8000", envvar="DEFEND_BASE_URL", help="Server base URL"),
+    limit: int = typer.Option(200, help="Max samples to evaluate"),
+) -> None:
+    """
+    Run a small benchmark against the deepset/prompt-injections dataset.
+
+    Requires `defend[benchmark]` (and a running server).
+    """
+
+    try:
+        from datasets import load_dataset  # type: ignore
+    except Exception as exc:  # pragma: no cover
+        _require("benchmark", exc)
+
+    ds = load_dataset("deepset/prompt-injections", split="test")  # type: ignore
+
+    client = Client(api_key=api_key, base_url=base_url)
+    latencies_ms: List[float] = []
+    tp = fp = fn = tn = 0
+
+    try:
+        for i, row in enumerate(ds):
+            if i >= limit:
+                break
+
+            text = row.get("text") or row.get("prompt") or row.get("injection_prompt")  # dataset variants
+            label = row.get("label") or row.get("is_injection")
+            if not isinstance(text, str) or label is None:
+                continue
+
+            # Normalize label to bool: True means injection.
+            is_injection = bool(label)
+
+            start = time.perf_counter()
+            result = client.input(text)
+            elapsed_ms = (time.perf_counter() - start) * 1000.0
+            latencies_ms.append(elapsed_ms)
+
+            pred_injection = result.action in ("block", "flag")
+
+            if pred_injection and is_injection:
+                tp += 1
+            elif pred_injection and not is_injection:
+                fp += 1
+            elif (not pred_injection) and is_injection:
+                fn += 1
+            else:
+                tn += 1
+
+        precision, recall, f1 = _precision_recall_f1(tp, fp, fn)
+        p50 = statistics.median(latencies_ms) if latencies_ms else 0.0
+        p95 = statistics.quantiles(latencies_ms, n=20)[18] if len(latencies_ms) >= 20 else p50
+
+        typer.echo(f"samples={tp+fp+fn+tn} tp={tp} fp={fp} fn={fn} tn={tn}")
+        typer.echo(f"precision={precision:.3f} recall={recall:.3f} f1={f1:.3f}")
+        typer.echo(f"latency_ms: p50={p50:.1f} p95={p95:.1f}")
+    finally:
+        client.close()
+

@@ -28,7 +28,7 @@ jobs:
 
       - name: Lint with ruff
         run: |
-          ruff check defend_api client
+          ruff check defend_api defend
 
   typecheck:
     runs-on: ubuntu-latest
@@ -51,5 +51,5 @@ jobs:
 
       - name: Compile (import sanity)
         run: |
-          python -m compileall defend_api client
+          python -m compileall defend_api defend
 

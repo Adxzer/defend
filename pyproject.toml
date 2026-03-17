@@ -3,7 +3,7 @@ requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "defend-api"
+name = "defend"
 version = "0.1.0"
 description = "AI security guardrails for LLM applications."
 readme = "README.md"
@@ -12,9 +12,41 @@ license = { text = "Apache-2.0" }
 authors = [
   { name = "Defend maintainers" }
 ]
-dependencies = []
+dependencies = [
+  "httpx>=0.27",
+  "pydantic>=2.9",
+  "typer>=0.12",
+]
+
+[project.optional-dependencies]
+# Full server dependencies (intentionally heavy).
+server = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "prometheus-fastapi-instrumentator>=7.0",
+  "pydantic-settings>=2.5",
+  "regex>=2024.9.11",
+  "bleach>=6.2",
+  "ftfy>=6.2",
+  "openai>=1.57",
+  "anthropic>=0.42",
+  "transformers>=4.46",
+  "sentence-transformers>=3.2",
+]
+
+benchmark = [
+  "datasets>=2.20",
+  "scikit-learn>=1.5",
+]
+
+all = [
+  "defend[server,benchmark]",
+]
+
+[project.scripts]
+defend = "defend.cli:app"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["defend_api*", "client*"]
+include = ["defend*", "defend_api*"]
 

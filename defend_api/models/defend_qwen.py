@@ -28,7 +28,18 @@ class DefendQwenClassifier:
 
     def __init__(self, model_id: str, max_window: int = 512, stride: int = 128) -> None:
         self._logger = get_logger(__name__)
-        self._tokenizer = AutoTokenizer.from_pretrained(model_id)
+        # Some model repos ship a `tokenizer_config.json` with `extra_special_tokens`
+        # set to a list. Recent Transformers expects a dict for model-specific
+        # special tokens during tokenizer init (it calls `.keys()`), which can
+        # crash at startup. Force a safe dict override.
+        #
+        # Note: `use_fast=False` is not viable for Qwen2 tokenizers in some repos
+        # because the slow tokenizer requires a `vocab_file` that may be absent.
+        self._tokenizer = AutoTokenizer.from_pretrained(
+            model_id,
+            use_fast=True,
+            extra_special_tokens={},
+        )
         self._model = AutoModelForSequenceClassification.from_pretrained(model_id)
         self._model.eval()
         self._max_window = max_window
