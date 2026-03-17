@@ -33,6 +33,7 @@ class NormalizationDiagnostics(BaseModel):
     raw: str
     normalized: str
     transformations: List[str] = Field(default_factory=list)
+    latency_ms: Optional[int] = None
 
 
 class IntentDecision(str, Enum):
@@ -44,6 +45,7 @@ class IntentDiagnostics(BaseModel):
     label: str
     score: float
     decision: IntentDecision
+    latency_ms: Optional[int] = None
 
 
 class RegexDecision(str, Enum):
@@ -64,17 +66,23 @@ class RegexDiagnostics(BaseModel):
     score: float
     decision: RegexDecision
     matches: List[RegexMatch] = Field(default_factory=list)
+    latency_ms: Optional[int] = None
 
 
-class PerplexityDecision(str, Enum):
-    BLOCK = "BLOCK"
+class AnomalyDecision(str, Enum):
+    WARMUP = "WARMUP"
     FLAG = "FLAG"
     CONTINUE = "CONTINUE"
 
 
-class PerplexityDiagnostics(BaseModel):
-    value: float
-    decision: PerplexityDecision
+class AnomalyDiagnostics(BaseModel):
+    decision: AnomalyDecision
+    scored: bool
+    samples_seen: int
+    anomaly_score: Optional[float] = None
+    flagged: Optional[bool] = None
+    distance: Optional[float] = None
+    latency_ms: Optional[int] = None
 
 
 class SessionDecision(str, Enum):
@@ -88,18 +96,20 @@ class SessionDiagnostics(BaseModel):
     session_score: float
     peak_score: float
     turns: int
+    latency_ms: Optional[int] = None
 
 
 class DefendDiagnostics(BaseModel):
     is_injection: bool
     probability: float
+    latency_ms: Optional[int] = None
 
 
 class LayerDiagnostics(BaseModel):
     normalization: Optional[NormalizationDiagnostics] = None
     intent: Optional[IntentDiagnostics] = None
     regex: Optional[RegexDiagnostics] = None
-    perplexity: Optional[PerplexityDiagnostics] = None
+    anomaly: Optional[AnomalyDiagnostics] = None
     session: Optional[SessionDiagnostics] = None
     defend: Optional[DefendDiagnostics] = None
 
@@ -158,5 +168,11 @@ class GuardResult(BaseModel):
             "reason": self.reason,
             "modules_triggered": self.modules_triggered,
         }
+
+
+class GuardResultVerbose(GuardResult):
+    is_injection: bool
+    final_action: FinalAction
+    layers: LayerDiagnostics
 
 

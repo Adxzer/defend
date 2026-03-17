@@ -43,7 +43,7 @@ Internally, Defend runs each request through a multi-layer pipeline before the s
 | L1 | Normalization | Cleans and normalizes text (Unicode, homoglyphs, etc.) |
 | L2 | Intent fast-pass | Quickly exits obvious benign inputs using a lightweight model |
 | L3 | Regex heuristics | Applies pattern-based checks from `defend_api.patterns.DEFAULT_PATTERNS` |
-| L4 | Perplexity filter | Flags anomalous or machine-generated payloads |
+| L4 | Embedding anomaly | Flags out-of-distribution inputs via embedding distance to a clean-traffic centroid |
 | L5 | Session accumulator | Maintains a rolling risk score across conversation turns |
 | L6 | Provider layer | Makes the final semantic decision using `defend`, `claude`, or `openai` |
 

@@ -1,17 +1,20 @@
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from typing import Optional
 
 from ..config import get_defend_config
 from ..config import get_settings
 from ..logging import get_logger
+from ..pipeline.anomaly_filter import run_anomaly_filter
 from ..pipeline.intent_fastpass import run_intent_gate
 from ..pipeline.normalization import NormalizedText, normalize_text
-from ..pipeline.perplexity_filter import run_perplexity_filter
 from ..pipeline.regex_heuristics import RegexHeuristics
 from ..pipeline.session_accumulator import SessionResult, get_session_accumulator
 from ..schemas import (
+    AnomalyDecision,
+    AnomalyDiagnostics,
     DefendDiagnostics,
     FinalAction,
     GuardAction,
@@ -19,8 +22,6 @@ from ..schemas import (
     IntentDiagnostics,
     LayerDiagnostics,
     NormalizationDiagnostics,
-    PerplexityDecision,
-    PerplexityDiagnostics,
     ProviderName,
     RegexDecision,
     RegexDiagnostics,
@@ -68,28 +69,40 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
     defend_config = get_defend_config()
 
     # L1 - Normalization
+    t0 = time.perf_counter()
     normalized: NormalizedText = normalize_text(text)
+    l1_ms = int((time.perf_counter() - t0) * 1000)
     norm_diag = NormalizationDiagnostics(
         raw=normalized.raw,
         normalized=normalized.normalized,
         transformations=normalized.transformations,
+        latency_ms=l1_ms,
     )
 
     # L2 - Intent Fast-Pass
+    t0 = time.perf_counter()
     intent_gate = run_intent_gate(normalized)
+    l2_ms = int((time.perf_counter() - t0) * 1000)
     intent_diag = IntentDiagnostics(
         label=intent_gate.output.label,
         score=intent_gate.output.score,
         decision=IntentDecision.PASS_ if intent_gate.decision == "PASS" else IntentDecision.CONTINUE,
+        latency_ms=l2_ms,
     )
 
     if intent_gate.decision == "PASS":
         layers = LayerDiagnostics(normalization=norm_diag, intent=intent_diag)
-        return OrchestratorResult(is_injection=False, final_action=FinalAction.PASS, layers=layers)
+        return OrchestratorResult(
+            is_injection=False,
+            final_action=FinalAction.PASS,
+            layers=layers,
+        )
 
     # L3 - Regex Heuristics
+    t0 = time.perf_counter()
     regex_engine = get_regex_engine()
     regex_res = regex_engine.run(normalized)
+    l3_ms = int((time.perf_counter() - t0) * 1000)
     regex_matches = [
         RegexMatch(
             name=m.name,
@@ -104,32 +117,46 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
         score=regex_res.score,
         decision=RegexDecision(regex_res.decision),  # type: ignore[arg-type]
         matches=regex_matches,
+        latency_ms=l3_ms,
     )
 
     if regex_res.decision == "BLOCK":
         layers = LayerDiagnostics(normalization=norm_diag, intent=intent_diag, regex=regex_diag)
-        return OrchestratorResult(is_injection=True, final_action=FinalAction.BLOCK, layers=layers)
-
-    # L4 - Perplexity Filter
-    perplexity_res = run_perplexity_filter(normalized)
-    perplexity_diag = PerplexityDiagnostics(
-        value=perplexity_res.output.value,
-        decision=PerplexityDecision(perplexity_res.decision),  # type: ignore[arg-type]
-    )
-
-    if perplexity_res.decision == "BLOCK":
-        layers = LayerDiagnostics(
-            normalization=norm_diag,
-            intent=intent_diag,
-            regex=regex_diag,
-            perplexity=perplexity_diag,
+        return OrchestratorResult(
+            is_injection=True,
+            final_action=FinalAction.BLOCK,
+            layers=layers,
         )
-        return OrchestratorResult(is_injection=True, final_action=FinalAction.BLOCK, layers=layers)
+
+    # L4 - Embedding anomaly (risk-only)
+    t0 = time.perf_counter()
+    anomaly_res = run_anomaly_filter(normalized)
+    l4_ms = int((time.perf_counter() - t0) * 1000)
+    if anomaly_res.decision == "WARMUP":
+        anomaly_diag = AnomalyDiagnostics(
+            decision=AnomalyDecision.WARMUP,
+            scored=False,
+            samples_seen=int(anomaly_res.samples_seen),
+            latency_ms=l4_ms,
+        )
+        anomaly_flagged = False
+    else:
+        anomaly_flagged = bool(anomaly_res.output["flagged"])  # type: ignore[index]
+        anomaly_diag = AnomalyDiagnostics(
+            decision=AnomalyDecision.FLAG if anomaly_flagged else AnomalyDecision.CONTINUE,
+            scored=True,
+            samples_seen=int(anomaly_res.samples_seen),
+            anomaly_score=float(anomaly_res.output["anomaly_score"]),  # type: ignore[index]
+            flagged=anomaly_flagged,
+            distance=float(anomaly_res.output["distance"]),  # type: ignore[index]
+            latency_ms=l4_ms,
+        )
 
     # L5 - Session Accumulation (mandatory when session_id present)
     session_diag: Optional[SessionDiagnostics] = None
     session_result: Optional[SessionResult] = None
     if session_id:
+        t0 = time.perf_counter()
         accumulator = await get_session_accumulator()
         # Turn-level risk is derived from upstream decisions, not raw scores.
         turn_risk = 0.0
@@ -138,16 +165,18 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
         elif regex_res.decision == "BLOCK":
             turn_risk += 1.0
 
-        if perplexity_res.decision == "BLOCK":
+        if anomaly_flagged:
             turn_risk += 0.5
 
         turn_score = min(turn_risk, 1.0)
         session_result = await accumulator.update(session_id, turn_score, int(settings.SESSION_BLOCK_THRESHOLD))
+        l5_ms = int((time.perf_counter() - t0) * 1000)
         session_diag = SessionDiagnostics(
             decision=SessionDecision(session_result.decision),  # type: ignore[arg-type]
             session_score=session_result.session_score,
             peak_score=session_result.peak_score,
             turns=session_result.turns,
+            latency_ms=l5_ms,
         )
 
         if session_result.decision == "BLOCK":
@@ -155,10 +184,14 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
                 normalization=norm_diag,
                 intent=intent_diag,
                 regex=regex_diag,
-                perplexity=perplexity_diag,
+                anomaly=anomaly_diag,
                 session=session_diag,
             )
-            return OrchestratorResult(is_injection=True, final_action=FinalAction.BLOCK, layers=layers)
+            return OrchestratorResult(
+                is_injection=True,
+                final_action=FinalAction.BLOCK,
+                layers=layers,
+            )
 
     # L6 - Provider orchestrator
     provider_orchestrator = get_provider_orchestrator()
@@ -183,17 +216,20 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
         from ..models.defend_qwen import get_defend_classifier  # local import to avoid cycles
 
         defend_classifier = get_defend_classifier()
+        t0 = time.perf_counter()
         defend_output = defend_classifier.classify(normalized.normalized)
+        defend_ms = int((time.perf_counter() - t0) * 1000)
         defend_diag = DefendDiagnostics(
             is_injection=defend_output.is_injection,
             probability=defend_output.probability,
+            latency_ms=defend_ms,
         )
 
     layers = LayerDiagnostics(
         normalization=norm_diag,
         intent=intent_diag,
         regex=regex_diag,
-        perplexity=perplexity_diag,
+        anomaly=anomaly_diag,
         session=session_diag,
         defend=defend_diag,
         )

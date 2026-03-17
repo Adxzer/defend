@@ -6,6 +6,8 @@ import regex as re
 import unicodedata
 from bleach.sanitizer import Cleaner
 
+from ..config import get_settings
+
 
 @dataclass
 class NormalizedText:
@@ -63,6 +65,12 @@ def normalize_text(raw: str) -> NormalizedText:
     if lowered != text:
         transformations.append("lowercase")
         text = lowered
+
+    settings = get_settings()
+    max_chars = int(settings.MAX_INPUT_CHARS)
+    if max_chars > 0 and len(text) > max_chars:
+        transformations.append(f"truncate_chars:{max_chars}")
+        text = text[:max_chars]
 
     return NormalizedText(raw=raw, normalized=text, transformations=transformations)
 

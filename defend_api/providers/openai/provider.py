@@ -7,7 +7,6 @@ from typing import Optional
 import anyio
 from openai import APIStatusError, OpenAI
 
-from ...config import get_settings
 from ..base import BaseProvider, ProviderResult, ProviderUnavailableError
 from ...modules.base import BaseModule
 
@@ -40,8 +39,7 @@ class OpenAIProvider(BaseProvider):
     supports_modules = True
 
     def __init__(self) -> None:
-        # Settings are currently unused but kept for future configurability.
-        get_settings()
+        # Settings currently unused; keep init lightweight.
         self._client: Optional[OpenAI] = None
         # Model choice can be made configurable later; hard-code for now.
         self._model = "gpt-4.1-mini"

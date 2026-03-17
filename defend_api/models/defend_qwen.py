@@ -22,8 +22,7 @@ class DefendQwenClassifier:
     """
     Defend classifier backed by the Adaxer/defend Transformers model.
 
-    This mirrors the GPT-2 perplexity setup: we rely on Hugging Face to load
-    the model weights and avoid ONNX/export complexity.
+    We rely on Hugging Face Transformers to load model weights and avoid ONNX/export complexity.
     """
 
     def __init__(self, model_id: str, max_window: int = 512, stride: int = 128) -> None:

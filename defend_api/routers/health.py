@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Response, status
 
 from ..models.defend_qwen import get_defend_classifier
-from ..models.perplexity import get_perplexity_scorer
+from ..pipeline.anomaly_scorer import get_anomaly_scorer
 from ..pipeline.session_accumulator import get_session_accumulator
 from ..providers import get_all_providers
 
@@ -18,11 +18,11 @@ async def health() -> dict:
 async def ready() -> Response:
     details: dict[str, str] = {}
 
-    # Check L4 perplexity model
+    # Check L4 anomaly scorer
     try:
-        get_perplexity_scorer()
+        get_anomaly_scorer()
     except Exception as exc:  # pragma: no cover - defensive
-        details["perplexity"] = f"error: {exc}"
+        details["anomaly"] = f"error: {exc}"
 
     # Check L6 Defend model
     try:

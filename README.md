@@ -4,9 +4,9 @@
 
 Defend is an open-source **LLM security** and **prompt injection defense** service. It wraps your existing LLM calls with session-aware input and output evaluation, without changing how you talk to your provider.
 
-License
-Python
-Docker
+![License](https://img.shields.io/badge/license-Apache--2.0-blue)
+![Python](https://img.shields.io/badge/python-3.12%2B-blue)
+![Docker](https://img.shields.io/badge/docker-ready-blue)
 
 ---
 

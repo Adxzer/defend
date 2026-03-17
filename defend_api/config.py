@@ -18,14 +18,19 @@ class Settings(BaseSettings):
 
     # Models
     INTENT_MODEL_ID: str = "sentence-transformers/all-MiniLM-L6-v2"
-    PERPLEXITY_MODEL_ID: str = "gpt2"
     DEFEND_MODEL_ID: str = "Adaxer/defend"
 
     # Thresholds
     INTENT_FASTPASS_THRESHOLD: float = 0.85
     REGEX_BLOCK_THRESHOLD: float = 0.9
     REGEX_FLAG_THRESHOLD: float = 0.6
-    PERPLEXITY_BLOCK_THRESHOLD: float = 80.0
+
+    # Anomaly
+    ANOMALY_THRESHOLD: float = 1.0
+    ANOMALY_WARMUP_SAMPLES: int = 100
+    ANOMALY_CENTROID_PATH: str = ".defend/anomaly_centroid.npz"
+    # Global input cap
+    MAX_INPUT_CHARS: int = 8000
     # Sessions (L5)
     SESSION_TTL_SECONDS: int = 1800
     SESSION_BLOCK_THRESHOLD: int = 3

@@ -40,6 +40,10 @@ class IntentClassifier:
     def _embed(self, text: str) -> np.ndarray:
         return self._tokenizer_model.encode([text])[0].astype(np.float32)
 
+    def embed(self, text: str) -> np.ndarray:
+        # Public embedding accessor so other layers can reuse the same loaded model.
+        return self._embed(text)
+
     def classify(self, text: str) -> IntentOutput:
         embedding = self._embed(text)
 

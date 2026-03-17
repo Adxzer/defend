@@ -12,7 +12,7 @@ from ..guard_session import get_guard_session_store
 from ..modules import build_modules_from_specs
 from ..providers import get_provider
 from ..providers.base import ProviderUnavailableError
-from ..schemas import GuardAction, GuardContext, GuardInputRequest, GuardOutputRequest, GuardResult
+from ..schemas import GuardAction, GuardContext, GuardInputRequest, GuardOutputRequest, GuardResult, GuardResultVerbose
 
 
 router = APIRouter(prefix="/guard", tags=["guard"])
@@ -44,8 +44,8 @@ def _format_output_eval_text(output_text: str, input_context: Optional[Dict[str,
     return f"ORIGINAL_USER_INPUT:\n{user_text}\n\nLLM_RESPONSE:\n{output_text}"
 
 
-@router.post("/input", response_model=GuardResult)
-async def guard_input(request: GuardInputRequest) -> JSONResponse:
+@router.post("/input", response_model=GuardResult | GuardResultVerbose)
+async def guard_input(request: GuardInputRequest, verbose: bool = False) -> JSONResponse:
     # Reject excessively large payloads early to avoid timeouts and unnecessary downstream work.
     if len(request.text) >= 20_000:
         raise HTTPException(status_code=413, detail="Input text too large")
@@ -77,7 +77,16 @@ async def guard_input(request: GuardInputRequest) -> JSONResponse:
         latency_ms=pipeline_result.latency_ms or 0,
     )
 
-    payload = _sanitize_finite(result.model_dump())
+    if verbose:
+        verbose_result = GuardResultVerbose(
+            **result.model_dump(),
+            is_injection=pipeline_result.is_injection,
+            final_action=pipeline_result.final_action,
+            layers=pipeline_result.layers,
+        )
+        payload = _sanitize_finite(verbose_result.model_dump())
+    else:
+        payload = _sanitize_finite(result.model_dump())
     return JSONResponse(content=payload)
 
 

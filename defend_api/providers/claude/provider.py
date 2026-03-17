@@ -7,7 +7,6 @@ from typing import Optional
 import anyio
 from anthropic import APIStatusError, Anthropic
 
-from ...config import get_settings
 from ..base import BaseProvider, ProviderResult, ProviderUnavailableError
 from ...modules.base import BaseModule
 
@@ -40,8 +39,7 @@ class ClaudeProvider(BaseProvider):
     supports_modules = True
 
     def __init__(self) -> None:
-        # Settings are currently unused but kept for future configurability.
-        get_settings()
+        # Settings currently unused; keep init lightweight.
         self._client: Optional[Anthropic] = None
         # Model choice can be made configurable later; hard-code for now.
         self._model = "claude-3-5-sonnet-20241022"
