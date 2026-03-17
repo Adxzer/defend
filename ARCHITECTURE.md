@@ -20,7 +20,7 @@ LLM  → App → /v1/guard/output (session_id) → (pass|flag|block) → App →
 
 ## Pipeline layers (input path)
 
-Input evaluation runs a layered pipeline (`defend_api/pipeline/orchestrator.py`):
+Input evaluation runs a layered pipeline (`defend/api/pipeline/orchestrator.py`):
 
 - **Normalization**: text normalization and cleanup.
 - **Intent fast-pass**: short-circuit obviously benign inputs when enabled.
@@ -35,21 +35,21 @@ Session accumulation implementation details:
 
 ## Providers and chaining
 
-Providers are the L6 semantic decision engines (`defend_api/providers/`).
+Providers are the L6 semantic decision engines (`defend/api/providers/`).
 
 Implemented providers:
 
 - `defend`: local Qwen-based classifier (no external API calls). Input-oriented; does not support modules.
 - `claude` / `openai`: LLM-backed evaluation; supports modules and is required for output guarding.
 
-Provider chaining is implemented in `defend_api/providers/orchestrator.py`:
+Provider chaining is implemented in `defend/api/providers/orchestrator.py`:
 
 - **Confidence escalation** (`primary: defend`, `fallback: claude|openai`): run local classify first; call the LLM provider only when confidence is below `confidence_threshold`.
 - **Both-active gate** (`primary: claude|openai`, `fallback: defend`): run `defend` first; hard-block before calling the LLM provider if it blocks.
 
 ## Modules
 
-Modules live in `defend_api/modules/` and are direction-scoped:
+Modules live in `defend/api/modules/` and are direction-scoped:
 
 - Input: `injection`, `pii`, `topic`, `custom`
 - Output: `prompt_leak`, `pii_output`, `topic_output`, `custom_output`
@@ -60,8 +60,8 @@ LLM providers compose modules by adding their `system_prompt()` fragments to the
 
 The codebase uses `session_id` in two distinct places:
 
-- **Pipeline session state** (`defend_api/session.py` + `defend_api/pipeline/session_accumulator.py`): rolling session risk.
-- **Input context for output** (`defend_api/guard_session.py`): stores input context for `/v1/guard/output`.
+- **Pipeline session state** (`defend/api/session.py` + `defend/api/pipeline/session_accumulator.py`): rolling session risk.
+- **Input context for output** (`defend/api/guard_session.py`): stores input context for `/v1/guard/output`.
 
 Both are in-memory and per-process. If you run multiple workers, context is not shared unless you add a shared backend.
 

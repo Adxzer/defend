@@ -13,7 +13,7 @@ def _normalize_base_url(base_url: str) -> str:
     """
     Normalize a base URL such that it includes the `/v1` API prefix.
 
-    The server mounts all routers under `/v1` (see `defend_api.main`).
+    The server mounts all routers under `/v1` (see `defend.api.main`).
     """
 
     url = base_url.rstrip("/")

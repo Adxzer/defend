@@ -10,17 +10,29 @@ Goal: get a working DEFEND API locally, then integrate it (HTTP or Python). This
 ## Install
 
 ```bash
+pip install defend
+# optional (run the API locally + install FastAPI server deps):
 pip install "defend[server]"
 ```
 
-`defend[server]` includes the FastAPI service dependencies. If you only want the client SDK, install `defend` without extras.
+`defend` is the core Python SDK. `defend[server]` includes the FastAPI service dependencies. If you only want the client SDK, install `defend` without extras.
 
 ## Run the API
 
 The API expects a `defend.config.yaml` in the project root (the server loads it on startup).
 
+The recommended one-liner (using a config token generated from the DEFEND preset website) is:
+
 ```bash
-uvicorn defend_api.main:app --host 0.0.0.0 --port 8000
+pip install "defend[server]" \
+  && defend init --config-token "<TOKEN_FROM_WEBSITE>" \
+  && defend serve
+```
+
+You can also run the ASGI app directly:
+
+```bash
+uvicorn defend.api.main:app --host 0.0.0.0 --port 8000
 ```
 
 Health check:

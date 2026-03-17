@@ -17,9 +17,19 @@
 
 ```bash
 pip install defend
-# optional (run the API locally + install Starlette/FastAPI deps for middleware):
+# optional (run the API locally + install FastAPI server deps):
 pip install "defend[server]"
 ```
+
+To configure and run a local server using the web configurator:
+
+```bash
+pip install "defend[server]" \
+  && defend init --config-token "<TOKEN_FROM_WEBSITE>" \
+  && defend serve
+```
+
+Using the Python SDK:
 
 ```python
 from defend import Client

@@ -49,5 +49,5 @@ defend = "defend.cli:app"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["defend*", "defend_api*"]
+include = ["defend*"]
 

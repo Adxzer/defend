@@ -1,10 +1,23 @@
 # Configuration
 
-This file documents what the server actually reads today (`defend_api/config.py`). If a knob isn’t here, don’t assume it exists.
+This file documents what the server actually reads today (`defend/api/config.py`). If a knob isn’t here, don’t assume it exists.
 
 ## Where config lives
 
 The API loads `defend.config.yaml` from the repository root at startup.
+
+In most cases you will not hand-edit this file. Instead, you:
+
+- use the DEFEND website to select providers, modules, and settings, then
+- copy the generated one-liner, which includes a compressed `--config-token`, and run:
+
+```bash
+pip install "defend[server]" \
+  && defend init --config-token "<TOKEN_FROM_WEBSITE>" \
+  && defend serve
+```
+
+Advanced users can still edit `defend.config.yaml` directly; the schema below describes what the server expects.
 
 ## Providers
 
