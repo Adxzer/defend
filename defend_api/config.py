@@ -25,13 +25,9 @@ class Settings(BaseSettings):
     REGEX_BLOCK_THRESHOLD: float = 0.9
     REGEX_FLAG_THRESHOLD: float = 0.6
 
-    # Anomaly
-    ANOMALY_THRESHOLD: float = 1.0
-    ANOMALY_WARMUP_SAMPLES: int = 100
-    ANOMALY_CENTROID_PATH: str = ".defend/anomaly_centroid.npz"
-
     # Defend model runtime caps 
     DEFEND_MAX_INPUT_TOKENS: int = 1024
+    DEFEND_INJECTION_THRESHOLD: float = 0.5
 
     # Semantic provider input caps 
     ANTHROPIC_MAX_INPUT_TOKENS: int = 2048

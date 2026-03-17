@@ -69,22 +69,6 @@ class RegexDiagnostics(BaseModel):
     latency_ms: Optional[int] = None
 
 
-class AnomalyDecision(str, Enum):
-    WARMUP = "WARMUP"
-    FLAG = "FLAG"
-    CONTINUE = "CONTINUE"
-
-
-class AnomalyDiagnostics(BaseModel):
-    decision: AnomalyDecision
-    scored: bool
-    samples_seen: int
-    anomaly_score: Optional[float] = None
-    flagged: Optional[bool] = None
-    distance: Optional[float] = None
-    latency_ms: Optional[int] = None
-
-
 class SessionDecision(str, Enum):
     BLOCK = "BLOCK"
     ESCALATE = "ESCALATE"
@@ -109,7 +93,6 @@ class LayerDiagnostics(BaseModel):
     normalization: Optional[NormalizationDiagnostics] = None
     intent: Optional[IntentDiagnostics] = None
     regex: Optional[RegexDiagnostics] = None
-    anomaly: Optional[AnomalyDiagnostics] = None
     session: Optional[SessionDiagnostics] = None
     defend: Optional[DefendDiagnostics] = None
 

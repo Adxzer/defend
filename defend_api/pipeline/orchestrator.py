@@ -7,14 +7,11 @@ from typing import Optional
 from ..config import get_defend_config
 from ..config import get_settings
 from ..logging import get_logger
-from ..pipeline.anomaly_filter import run_anomaly_filter
 from ..pipeline.intent_fastpass import run_intent_gate
 from ..pipeline.normalization import NormalizedText, normalize_text
 from ..pipeline.regex_heuristics import RegexHeuristics
 from ..pipeline.session_accumulator import SessionResult, get_session_accumulator
 from ..schemas import (
-    AnomalyDecision,
-    AnomalyDiagnostics,
     DefendDiagnostics,
     FinalAction,
     GuardAction,
@@ -128,45 +125,32 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
             layers=layers,
         )
 
-    # L4 - Embedding anomaly (risk-only)
-    t0 = time.perf_counter()
-    anomaly_res = run_anomaly_filter(normalized)
-    l4_ms = int((time.perf_counter() - t0) * 1000)
-    if anomaly_res.decision == "WARMUP":
-        anomaly_diag = AnomalyDiagnostics(
-            decision=AnomalyDecision.WARMUP,
-            scored=False,
-            samples_seen=int(anomaly_res.samples_seen),
-            latency_ms=l4_ms,
-        )
-        anomaly_flagged = False
-    else:
-        anomaly_flagged = bool(anomaly_res.output["flagged"])  # type: ignore[index]
-        anomaly_diag = AnomalyDiagnostics(
-            decision=AnomalyDecision.FLAG if anomaly_flagged else AnomalyDecision.CONTINUE,
-            scored=True,
-            samples_seen=int(anomaly_res.samples_seen),
-            anomaly_score=float(anomaly_res.output["anomaly_score"]),  # type: ignore[index]
-            flagged=anomaly_flagged,
-            distance=float(anomaly_res.output["distance"]),  # type: ignore[index]
-            latency_ms=l4_ms,
-        )
+    # L4 - Provider orchestrator
+    provider_orchestrator = get_provider_orchestrator()
+    provider_result = await provider_orchestrator.evaluate(normalized.normalized, session_id=session_id)
+    # Providers return string actions ("pass"|"flag"|"block"). Compare by value, not identity.
+    action_value = provider_result.action.value if isinstance(provider_result.action, GuardAction) else str(provider_result.action)
+    is_provider_block = action_value == GuardAction.BLOCK.value
+    is_provider_flag = action_value == GuardAction.FLAG.value
 
     # L5 - Session Accumulation (mandatory when session_id present)
+    # After removing the anomaly layer, session risk is derived from stable signals:
+    # regex decisions + provider decision (flag/block).
     session_diag: Optional[SessionDiagnostics] = None
     session_result: Optional[SessionResult] = None
     if session_id:
         t0 = time.perf_counter()
         accumulator = await get_session_accumulator()
-        # Turn-level risk is derived from upstream decisions, not raw scores.
         turn_risk = 0.0
         if regex_res.decision == "FLAG":
             turn_risk += 0.5
         elif regex_res.decision == "BLOCK":
             turn_risk += 1.0
 
-        if anomaly_flagged:
+        if is_provider_flag:
             turn_risk += 0.5
+        if is_provider_block:
+            turn_risk += 1.0
 
         turn_score = min(turn_risk, 1.0)
         session_result = await accumulator.update(session_id, turn_score, int(settings.SESSION_BLOCK_THRESHOLD))
@@ -178,28 +162,6 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
             turns=session_result.turns,
             latency_ms=l5_ms,
         )
-
-        if session_result.decision == "BLOCK":
-            layers = LayerDiagnostics(
-                normalization=norm_diag,
-                intent=intent_diag,
-                regex=regex_diag,
-                anomaly=anomaly_diag,
-                session=session_diag,
-            )
-            return OrchestratorResult(
-                is_injection=True,
-                final_action=FinalAction.BLOCK,
-                layers=layers,
-            )
-
-    # L6 - Provider orchestrator
-    provider_orchestrator = get_provider_orchestrator()
-    provider_result = await provider_orchestrator.evaluate(normalized.normalized, session_id=session_id)
-    # Providers return string actions ("pass"|"flag"|"block"). Compare by value, not identity.
-    action_value = provider_result.action.value if isinstance(provider_result.action, GuardAction) else str(provider_result.action)
-    is_provider_block = action_value == GuardAction.BLOCK.value
-    is_provider_flag = action_value == GuardAction.FLAG.value
 
     session_blocked = session_result.decision == "BLOCK" if session_result else False
     is_injection = is_provider_block or session_blocked
@@ -231,7 +193,6 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
         normalization=norm_diag,
         intent=intent_diag,
         regex=regex_diag,
-        anomaly=anomaly_diag,
         session=session_diag,
         defend=defend_diag,
         )

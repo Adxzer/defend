@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Response, status
 
 from ..models.defend_qwen import get_defend_classifier
-from ..pipeline.anomaly_scorer import get_anomaly_scorer
 from ..pipeline.session_accumulator import get_session_accumulator
 from ..providers import get_all_providers
 
@@ -17,12 +16,6 @@ async def health() -> dict:
 @router.get("/ready")
 async def ready() -> Response:
     details: dict[str, str] = {}
-
-    # Check L4 anomaly scorer
-    try:
-        get_anomaly_scorer()
-    except Exception as exc:  # pragma: no cover - defensive
-        details["anomaly"] = f"error: {exc}"
 
     # Check L6 Defend model
     try:

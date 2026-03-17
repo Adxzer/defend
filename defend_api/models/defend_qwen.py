@@ -82,7 +82,8 @@ class DefendQwenClassifier:
 
         # Ensure probability is finite and in [0, 1] for JSON
         max_prob = max(0.0, min(1.0, max_prob)) if np.isfinite(max_prob) else 0.0
-        is_injection = max_prob >= 0.5
+        inj_threshold = float(getattr(settings, "DEFEND_INJECTION_THRESHOLD", 0.5))
+        is_injection = max_prob >= inj_threshold
         return DefendOutput(is_injection=is_injection, probability=max_prob)
 
 

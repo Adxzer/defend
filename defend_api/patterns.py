@@ -127,6 +127,33 @@ DEFAULT_PATTERNS: List[RegexPattern] = [
         regex=r"(?i)for the purpose of this (test|evaluation|experiment),? (ignore|bypass) (all )?(safety|security|usage) (rules|policies|guidelines)",
         weight=0.8,
     ),
+    # Common jailbreak aliases and instruction wrappers
+    RegexPattern(
+        name="jailbreak_dan",
+        category="roleplay_jailbreak",
+        regex=r"(?i)\\bDAN\\b|do anything now",
+        weight=0.7,
+    ),
+    RegexPattern(
+        name="jailbreak_developer_mode",
+        category="roleplay_jailbreak",
+        regex=r"(?i)developer mode|jailbreak mode|enable (developer|jailbreak) mode",
+        weight=0.7,
+    ),
+    # Instruction delimiters often used in injection templates
+    RegexPattern(
+        name="injection_delimiters",
+        category="instruction_override",
+        regex=r"(?i)\\b(begin|end) (system|developer|assistant) (prompt|message)\\b|###\\s*(system|developer|instruction)\\b",
+        weight=0.6,
+    ),
+    # Direct attempts to override tools / policies / constraints
+    RegexPattern(
+        name="policy_override",
+        category="instruction_override",
+        regex=r"(?i)(ignore|bypass|override) (all )?(policies|policy|rules|constraints|filters|moderation)",
+        weight=0.85,
+    ),
 ]
 
 

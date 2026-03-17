@@ -568,8 +568,8 @@ async def main_async(args: argparse.Namespace) -> int:
                 texts=latency_pool,
                 concurrency=int(args.concurrency),
                 timeout_s=float(args.timeout_s),
-                warmup_n=100,
-                timed_n=500,
+                warmup_n=int(args.latency_warmup),
+                timed_n=int(args.latency_timed),
             )
 
             for subset_key in subsets_to_run:
@@ -700,6 +700,8 @@ def build_argparser() -> argparse.ArgumentParser:
     p.add_argument("--api-key", default=os.environ.get("DEFEND_API_KEY", ""))
     p.add_argument("--concurrency", type=int, default=25)
     p.add_argument("--timeout-s", type=float, default=30.0)
+    p.add_argument("--latency-warmup", type=int, default=100, help="Warm-up requests for API latency benchmark.")
+    p.add_argument("--latency-timed", type=int, default=500, help="Timed requests for API latency benchmark.")
     return p
 
 

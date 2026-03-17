@@ -35,6 +35,7 @@ class RegexHeuristics:
         self._flag_threshold = flag_threshold
         self._patterns: List[RegexPattern] = []
         self._compiled: list[tuple[RegexPattern, re.Pattern[str]]] = []
+        self._max_matches_per_pattern = 3
 
         patterns = get_regex_patterns()
         if not patterns:
@@ -54,6 +55,7 @@ class RegexHeuristics:
 
         for entry, pattern in self._compiled:
             weight = float(entry.weight)
+            matched_count = 0
             for match in pattern.finditer(text):
                 span = match.span()
                 snippet = text[max(0, span[0] - 40) : span[1] + 40]
@@ -67,6 +69,9 @@ class RegexHeuristics:
                     )
                 )
                 total_score += weight
+                matched_count += 1
+                if matched_count >= self._max_matches_per_pattern:
+                    break
 
         if total_score >= self._block_threshold:
             decision = "BLOCK"
