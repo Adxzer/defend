@@ -47,6 +47,8 @@ def _build_regex_engine() -> RegexHeuristics:
     return RegexHeuristics(
         block_threshold=settings.REGEX_BLOCK_THRESHOLD,
         flag_threshold=settings.REGEX_FLAG_THRESHOLD,
+        block_categories=list(getattr(settings, "REGEX_BLOCK_CATEGORIES", ["system_prompt_extraction"])),
+        flag_min_matches=int(getattr(settings, "REGEX_FLAG_MIN_MATCHES", 2)),
     )
 
 
@@ -76,7 +78,7 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
         latency_ms=l1_ms,
     )
 
-    # L2 - Intent Fast-Pass
+    # L2 - Intent Fast-Pass (safe-pass: cannot bypass regex)
     t0 = time.perf_counter()
     intent_gate = run_intent_gate(normalized)
     l2_ms = int((time.perf_counter() - t0) * 1000)
@@ -86,14 +88,6 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
         decision=IntentDecision.PASS_ if intent_gate.decision == "PASS" else IntentDecision.CONTINUE,
         latency_ms=l2_ms,
     )
-
-    if intent_gate.decision == "PASS":
-        layers = LayerDiagnostics(normalization=norm_diag, intent=intent_diag)
-        return OrchestratorResult(
-            is_injection=False,
-            final_action=FinalAction.PASS,
-            layers=layers,
-        )
 
     # L3 - Regex Heuristics
     t0 = time.perf_counter()
@@ -116,6 +110,16 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
         matches=regex_matches,
         latency_ms=l3_ms,
     )
+
+    # Safe-pass: only short-circuit when both intent says benign and regex sees no risk.
+    if intent_gate.decision == "PASS" and regex_res.decision == "CONTINUE" and regex_res.score <= 0.0:
+        layers = LayerDiagnostics(normalization=norm_diag, intent=intent_diag, regex=regex_diag)
+        return OrchestratorResult(
+            is_injection=False,
+            final_action=FinalAction.PASS,
+            layers=layers,
+            decided_by="intent_safe_pass",
+        )
 
     if regex_res.decision == "BLOCK":
         layers = LayerDiagnostics(normalization=norm_diag, intent=intent_diag, regex=regex_diag)

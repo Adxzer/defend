@@ -15,6 +15,10 @@ class IntentGateResult:
 
 def run_intent_gate(normalized: NormalizedText) -> IntentGateResult:
     settings = get_settings()
+    if not bool(getattr(settings, "INTENT_FASTPASS_ENABLED", True)):
+        classifier = get_intent_classifier()
+        output = classifier.classify(normalized.normalized)
+        return IntentGateResult(output=output, decision="CONTINUE")
     classifier = get_intent_classifier()
     output = classifier.classify(normalized.normalized)
 

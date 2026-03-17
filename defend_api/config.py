@@ -22,8 +22,13 @@ class Settings(BaseSettings):
 
     # Thresholds
     INTENT_FASTPASS_THRESHOLD: float = 0.85
+    INTENT_FASTPASS_ENABLED: bool = True
     REGEX_BLOCK_THRESHOLD: float = 0.9
     REGEX_FLAG_THRESHOLD: float = 0.6
+    # If any regex match occurs in one of these categories, block immediately.
+    REGEX_BLOCK_CATEGORIES: List[str] = Field(default_factory=lambda: ["system_prompt_extraction"])
+    # If total score didn't cross thresholds, still flag when we see multiple independent matches.
+    REGEX_FLAG_MIN_MATCHES: int = 2
 
     # Defend model runtime caps 
     DEFEND_MAX_INPUT_TOKENS: int = 1024

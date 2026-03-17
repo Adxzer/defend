@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List
+from typing import Dict, List, Set
 
 import regex as re
 
@@ -30,9 +30,18 @@ class RegexHeuristicsResult:
 
 
 class RegexHeuristics:
-    def __init__(self, block_threshold: float, flag_threshold: float) -> None:
+    def __init__(
+        self,
+        block_threshold: float,
+        flag_threshold: float,
+        *,
+        block_categories: List[str] | None = None,
+        flag_min_matches: int = 2,
+    ) -> None:
         self._block_threshold = block_threshold
         self._flag_threshold = flag_threshold
+        self._block_categories: Set[str] = {c for c in (block_categories or []) if isinstance(c, str) and c.strip()}
+        self._flag_min_matches = max(1, int(flag_min_matches))
         self._patterns: List[RegexPattern] = []
         self._compiled: list[tuple[RegexPattern, re.Pattern[str]]] = []
         self._max_matches_per_pattern = 3
@@ -52,6 +61,7 @@ class RegexHeuristics:
 
         total_score = 0.0
         matches: List[RegexMatchResult] = []
+        match_counts_by_category: Dict[str, int] = {}
 
         for entry, pattern in self._compiled:
             weight = float(entry.weight)
@@ -70,12 +80,17 @@ class RegexHeuristics:
                 )
                 total_score += weight
                 matched_count += 1
+                match_counts_by_category[entry.category] = match_counts_by_category.get(entry.category, 0) + 1
                 if matched_count >= self._max_matches_per_pattern:
                     break
 
-        if total_score >= self._block_threshold:
+        if self._block_categories and any(match_counts_by_category.get(c, 0) > 0 for c in self._block_categories):
+            decision = "BLOCK"
+        elif total_score >= self._block_threshold:
             decision = "BLOCK"
         elif total_score >= self._flag_threshold:
+            decision = "FLAG"
+        elif total_score > 0.0 and len(matches) >= self._flag_min_matches:
             decision = "FLAG"
         else:
             decision = "CONTINUE"
