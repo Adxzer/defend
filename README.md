@@ -2,7 +2,7 @@
   <img src="assets/header.jpg" alt="Defend - AI security guardrails for LLM applications" width="100%" />
 </p>
 
-<p align="center"><strong>AI security guardrails for LLM applications.</strong></p>
+<p align="center"><strong>AI security guardrails for LLM applications</strong></p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License: Apache-2.0" />
