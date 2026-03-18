@@ -66,7 +66,7 @@ guards:
     enabled: true
     provider: claude   # claude or openai
     modules: []
-    on_fail: block     # block | flag | retry_suggested
+    on_fail: block     # block | flag
 
   session_ttl_seconds: 300
 ```

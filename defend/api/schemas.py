@@ -14,7 +14,6 @@ class GuardAction(str, Enum):
     PASS = "pass"
     FLAG = "flag"
     BLOCK = "block"
-    RETRY_SUGGESTED = "retry_suggested"
 
 
 class GuardContext(str, Enum):

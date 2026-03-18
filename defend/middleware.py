@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, Dict, Optional, Protocol, TypeVar, cast
+from typing import Any, Awaitable, Callable, Optional, Protocol, TypeVar, cast
 
 from .client import Client
 from .models import GuardResult
@@ -154,7 +153,6 @@ def defend_required(
     """
 
     try:
-        from flask import Response as FlaskResponse
         from flask import jsonify, request
     except Exception as exc:  # pragma: no cover - depends on extras
         raise RuntimeError(

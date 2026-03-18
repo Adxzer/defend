@@ -88,7 +88,6 @@ thresholds:
 #   - on_fail: behaviour when the output evaluation fails:
 #       - "block"           : treat as block
 #       - "flag"            : treat as flag
-#       - "retry_suggested" : action is "retry_suggested" (client may retry)
 #
 # guards.session_ttl_seconds:
 #   - How long input context from /guard/input is kept in memory and usable
@@ -134,7 +133,7 @@ guards:
 #             - "account support"
 #       - custom_output:
 #           prompt: "Flag if the response recommends competitor products."
-#     on_fail: retry_suggested
+#     on_fail: flag
 #
 #   session_ttl_seconds: 300
 

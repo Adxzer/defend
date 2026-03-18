@@ -14,7 +14,7 @@ class GuardResult(BaseModel):
     - POST /v1/guard/output
     """
 
-    action: Literal["pass", "flag", "block", "retry_suggested"]
+    action: Literal["pass", "flag", "block"]
     session_id: str
     decided_by: str
     direction: Literal["input", "output"]

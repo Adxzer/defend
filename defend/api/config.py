@@ -115,7 +115,7 @@ class GuardsOutputConfig(BaseModel):
     enabled: bool = True
     provider: ProviderName = ProviderName.CLAUDE
     modules: List[Any] = Field(default_factory=list)
-    on_fail: GuardAction = GuardAction.BLOCK  # block | flag | retry_suggested
+    on_fail: GuardAction = GuardAction.BLOCK  # block | flag
 
     @field_validator("provider")
     @classmethod
@@ -131,8 +131,8 @@ class GuardsOutputConfig(BaseModel):
     @field_validator("on_fail")
     @classmethod
     def validate_on_fail(cls, v: GuardAction) -> GuardAction:
-        if v not in {GuardAction.BLOCK, GuardAction.FLAG, GuardAction.RETRY_SUGGESTED}:
-            raise ValueError("guards.output.on_fail must be 'block', 'flag', or 'retry_suggested'")
+        if v not in {GuardAction.BLOCK, GuardAction.FLAG}:
+            raise ValueError("guards.output.on_fail must be 'block' or 'flag'")
         return v
 
 
