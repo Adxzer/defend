@@ -39,7 +39,7 @@ Providers are the L6 semantic decision engines (`defend/api/providers/`).
 
 Implemented providers:
 
-- `defend`: local Qwen-based classifier (no external API calls). Input-oriented; does not support modules.
+- `defend`: local [Qwen-based classifier](https://huggingface.co/Adaxer/defend) (no external API calls). Input-oriented; ignores modules.
 - `claude` / `openai`: LLM-backed evaluation; supports modules and is required for output guarding.
 
 ## Modules

@@ -115,7 +115,7 @@ Defend separates the **pipeline** (what steps run) from **providers** (who makes
 
 Available providers:
 
-- `**defend`**: local Qwen-based classifier (no external API calls). Input-oriented; ignores modules.
+- `defend`: local [Qwen-based classifier](https://huggingface.co/Adaxer/defend) (no external API calls). Input-oriented; ignores modules.
 - `**claude` / `openai**`: LLM-backed evaluation; required for output guarding and module-based evaluation.
 
 You choose a provider in `defend.config.yaml`:
