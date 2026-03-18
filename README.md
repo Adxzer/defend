@@ -10,9 +10,9 @@
   <img src="https://img.shields.io/badge/docker-ready-blue" alt="Docker ready" />
 </p>
 
-- **Bidirectional**: guard both **input** (before your LLM call) and **output** (before you return text to users or tools).
-- **Multi-turn**: join `/v1/guard/input` and `/v1/guard/output` with a `session_id`, with a rolling session risk score used by the pipeline.
-- **Plain-language custom rules**: define your own policies via `custom` / `custom_output` using a single `prompt:` string.
+- **Guards inputs and outputs**: checks user text before your LLM call and the LLM response before you return it to users/tools.
+- **Maintains conversation context**: link turns with `session_id` so risk can accumulate across a session.
+- **Configurable policies**: use built-in modules (PII/topic/injection) or define your own plain-language rules (`custom` / `custom_output`) via a `prompt:` string.
 
 ---
 
@@ -20,15 +20,9 @@
 
 ```bash
 pip install defend
-# optional (run the API locally + install FastAPI server deps)
-pip install "defend[server]"
 ```
 
-To run the API locally, add a `defend.config.yaml` in the project root (see `CONFIGURATION.md` or copy from the repo), then:
-
-```bash
-defend serve
-```
+To run the Defend API locally (optional), follow `GETTING_STARTED.md`.
 
 ### Use the Python SDK
 
@@ -81,57 +75,31 @@ if out_res.blocked:
 ### Input guard
 
 ```text
-User → Your app → Defend /v1/guard/input → (pass | flag | block) → Your app → LLM
-                      └─ returns session_id (use it to link turns)
+User → Your app → /v1/guard/input → (pass | flag | block) → Your app → LLM
+                      └─ session_id (save this)
 ```
 
-Input evaluation runs through:
-
-- **Normalization**: cleanup, Unicode fixes, whitespace, etc.
-- **Intent fast-pass**: quickly pass obviously benign text when enabled.
-- **Regex heuristics**: cheap pattern checks for known bad behavior.
-- **Semantic provider decision**: call the configured provider (`defend`, `claude`, or `openai`).
-- **Session accumulation**: roll up risk across turns when you pass a `session_id`.
+Input guard checks the inbound text and can block early. If you receive a `session_id`, pass it to `/v1/guard/output` so Defend can apply multi-turn risk.
 
 ### Output guard
 
 ```text
-LLM → Your app → Defend /v1/guard/output (session_id) → (pass | flag | block) → Your app → User
+LLM → Your app → /v1/guard/output (session_id) → (pass | flag | block) → Your app → User
 ```
 
-Output evaluation:
-
-- Reuses the **same session** via `session_id`.
-- Applies **output modules** (e.g. `prompt_leak`, `pii_output`, `custom_output`).
-- Returns the final `action` for your app to enforce.
-
-See `ARCHITECTURE.md` for a deeper, code-first walkthrough.
+Output guard reviews the model output in context (using the same `session_id`) and applies output checks (prompt leaks, PII, topic, and your custom rules). Use the returned `action` to decide whether to return the text, flag it, or block it.
 
 ---
 
-## Provider & chaining model
+## Provider & evaluation model
 
-Defend separates the **pipeline** (what steps run) from **providers** (who makes the semantic decision).
+Defend always runs the same flow: input guard → your LLM → output guard.
 
-Available providers:
+For semantic evaluation, Defend can use:
 
-- `defend`: local [Qwen-based classifier](https://huggingface.co/Adaxer/defend) (no external API calls). Input-oriented; ignores modules.
-- `claude` / `openai`: LLM-backed evaluation; required for output guarding and module-based evaluation.
+- `defend` (local): fast, offline input-only checks. 
+- `claude` / `openai` (LLM): stronger evaluation; required for output guarding and module-based checks.
 
-You choose a provider in `defend.config.yaml`:
+In `defend.config.yaml`, you select which provider to use for input evaluation, and (when output guarding is enabled) which LLM provider to use for output evaluation. `claude/openai` calls consume API tokens.
 
-- **Local-only**:
-  - `provider.primary: defend`
-
-Cost note: `defend` costs local compute; `claude`/`openai` calls cost tokens.
-
-See `CONFIGURATION.md` for concrete config examples.
-
----
-
-## Learn more
-
-- `GETTING_STARTED.md`
-- `CONFIGURATION.md`
-- `ARCHITECTURE.md`
-
+For a minimal working setup, see `GETTING_STARTED.md`.

@@ -1,6 +1,6 @@
 # Getting Started
 
-Goal: get a working Defend API locally, then integrate it (HTTP or Python). This doc is intentionally concrete; it avoids feature claims you can’t verify by running the code.
+This guide walks you through running the Defend API locally and connecting it via HTTP or the Python client.
 
 ## Prerequisites
 
@@ -19,7 +19,7 @@ pip install "defend[server]"
 
 ## Run the API
 
-The API expects a `defend.config.yaml` in the project root (the server loads it on startup). Create one from the example in the repo or see `CONFIGURATION.md`, then:
+The API expects a `defend.config.yaml` in the project root (the server loads it on startup). Create one from the minimal example below (or copy from the repo), then:
 
 ```bash
 defend serve
@@ -46,13 +46,35 @@ curl http://localhost:8000/v1/health
 
 ## Configure a minimal, verifiable setup
 
-The service reads config from `defend.config.yaml`. Minimal baseline:
+The service reads config from `defend.config.yaml`.
 
+Example `defend.config.yaml` (minimal, working):
+```yaml
+provider:
+  primary: defend
+
+api_keys:
+  anthropic_env: ANTHROPIC_API_KEY
+  openai_env: OPENAI_API_KEY
+
+guards:
+  input:
+    provider: defend
+    modules: []
+
+  output:
+    enabled: true
+    provider: claude   # claude or openai
+    modules: []
+    on_fail: block     # block | flag | retry_suggested
+
+  session_ttl_seconds: 300
+```
+
+Notes:
 - Input uses the local **`defend`** provider.
-- Output uses an LLM provider (**`claude`** or **`openai`**) when enabled; output cannot be configured to `defend` (startup validation rejects it).
-- If you don't want output guarding, set `guards.output.enabled: false`.
-
-See `CONFIGURATION.md` for exact config fields and examples.
+- Output guarding requires an LLM provider (**`claude`** or **`openai`**).
+- To disable output guarding (defend-only), set `guards.output.enabled: false`.
 
 ## Call the HTTP API (the real contract)
 
@@ -132,7 +154,6 @@ app.add_middleware(
 When the input or output guard blocks, the middleware returns `403` with a JSON error payload. For custom handling you can pass an **on_block** callback (see the middleware signature in `defend.middleware`).
 
 ## Next steps
-
-- `CONFIGURATION.md`: enable modules + provider chaining safely.
-- `ARCHITECTURE.md`: understand the pipeline layers and multi-turn scoring.
+- Enable modules (PII/injection/topic/custom) by filling `guards.input.modules` / `guards.output.modules`.
+- Tune risk handling with `thresholds.block` and `thresholds.flag` to control when checks return `block` vs `flag`.
 
