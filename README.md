@@ -1,16 +1,18 @@
-# Defend
+<p align="center">
+  <img src="assets/header.jpg" alt="Defend - AI security guardrails for LLM applications" width="100%" />
+</p>
 
-![Defend header](assets/header.jpg)
+<p align="center"><strong>AI security guardrails for LLM applications.</strong></p>
 
-**AI security guardrails for LLM applications.**
+<p align="center">
+  <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License: Apache-2.0" />
+  <img src="https://img.shields.io/badge/python-3.12%2B-blue" alt="Python: 3.12+" />
+  <img src="https://img.shields.io/badge/docker-ready-blue" alt="Docker ready" />
+</p>
 
 - **Bidirectional**: guard both **input** (before your LLM call) and **output** (before you return text to users or tools).
 - **Multi-turn**: join `/v1/guard/input` and `/v1/guard/output` with a `session_id`, with a rolling session risk score used by the pipeline.
 - **Plain-language custom rules**: define your own policies via `custom` / `custom_output` using a single `prompt:` string.
-
-![License](https://img.shields.io/badge/license-Apache--2.0-blue)
-![Python](https://img.shields.io/badge/python-3.12%2B-blue)
-![Docker](https://img.shields.io/badge/docker-ready-blue)
 
 ---
 
