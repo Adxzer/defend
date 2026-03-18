@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 import statistics
 import time
 from typing import Any, Dict, List, Optional, Tuple
@@ -8,6 +9,13 @@ import typer
 
 from .client import Client
 from .exceptions import DefendError
+from .init_token import (
+    InitTokenError,
+    decode_init_token,
+    defend_config_dict_to_payload,
+    encode_init_token,
+    payload_to_defend_config_dict,
+)
 
 app = typer.Typer(add_completion=False, help="Defend CLI")
 
@@ -148,3 +156,200 @@ def benchmark(
     finally:
         client.close()
 
+
+def _csv_list(raw: str) -> list[str]:
+    parts = [p.strip() for p in (raw or "").split(",")]
+    return [p for p in parts if p]
+
+
+def _prompt_modules(direction: str, allow_custom: bool) -> list[Any]:
+    """
+    Prompt for module selection.
+
+    Returns a list of module specs compatible with `build_modules_from_specs`, e.g.:
+    - "pii"
+    - {"topic": {"allowed_topics": ["..."]}}
+    - {"custom": {"prompt": "..."}}
+    """
+    if direction not in {"input", "output"}:
+        raise typer.BadParameter("direction must be input or output")
+
+    if direction == "input":
+        builtin = ["injection", "pii", "topic"]
+        custom_name = "custom"
+    else:
+        builtin = ["prompt_leak", "pii_output", "topic_output"]
+        custom_name = "custom_output"
+
+    choices = ", ".join(builtin + ([custom_name] if allow_custom else []))
+    raw = typer.prompt(
+        f"Choose {direction} modules (comma-separated). Available: {choices}. Leave empty for none",
+        default="",
+        show_default=False,
+    )
+    selected = set(_csv_list(raw))
+
+    out: list[Any] = []
+    for name in builtin:
+        if name in selected:
+            if name in {"topic", "topic_output"}:
+                topics_raw = typer.prompt("Allowed topics (comma-separated)", default="", show_default=False)
+                allowed_topics = _csv_list(topics_raw)
+                out.append({name: {"allowed_topics": allowed_topics}})
+            else:
+                out.append(name)
+
+    if allow_custom and custom_name in selected:
+        prompt = typer.prompt(f"{custom_name} prompt (plain language rule)")
+        out.append({custom_name: {"prompt": prompt}})
+
+    return out
+
+
+def _select_provider_chain(selected: set[str]) -> dict[str, Any]:
+    """
+    Map a multi-select of providers into the validated (primary,fallback) config shape.
+    """
+    allowed = {"defend", "openai", "claude"}
+    if not selected.issubset(allowed):
+        bad = ", ".join(sorted(selected - allowed))
+        raise typer.BadParameter(f"Unknown provider(s): {bad}")
+
+    if selected == {"defend"}:
+        return {"primary": "defend"}
+
+    if selected == {"openai"}:
+        return {"primary": "openai"}
+    if selected == {"claude"}:
+        return {"primary": "claude"}
+
+    if selected == {"defend", "openai"}:
+        # default to confidence escalation: defend -> openai
+        return {"primary": "defend", "fallback": "openai"}
+    if selected == {"defend", "claude"}:
+        return {"primary": "defend", "fallback": "claude"}
+
+    if selected == {"openai", "defend"}:
+        return {"primary": "openai", "fallback": "defend"}
+    if selected == {"claude", "defend"}:
+        return {"primary": "claude", "fallback": "defend"}
+
+    # openai+claude (no defend) can't be represented as fallback per current validation.
+    primary = typer.prompt("Pick primary provider (openai or claude)", default="openai")
+    primary = primary.strip().lower()
+    if primary not in {"openai", "claude"}:
+        raise typer.BadParameter("Primary must be openai or claude")
+    return {"primary": primary}
+
+
+@app.command()
+def init(
+    token: Optional[str] = typer.Option(None, "--token", help="Init token string (defend_v1_...)"),
+    from_config: bool = typer.Option(False, "--from-config", help="Export token from existing defend.config.yaml"),
+    out_path: str = typer.Option("defend.config.yaml", "--out", help="Where to write the generated config"),
+) -> None:
+    """
+    Initialize Defend quickly from a compressed token, export a token, or run an interactive wizard.
+    """
+    try:
+        import yaml  # type: ignore
+    except Exception as exc:  # pragma: no cover
+        typer.echo(
+            "Missing dependency: PyYAML is required for `defend init`. Install with `pip install pyyaml`.",
+            err=True,
+        )
+        raise typer.Exit(code=1) from exc
+
+    if from_config:
+        try:
+            raw = yaml.safe_load(Path("defend.config.yaml").read_text(encoding="utf-8")) or {}
+        except Exception as exc:
+            typer.echo(f"Failed to read defend.config.yaml: {exc}", err=True)
+            raise typer.Exit(code=1)
+        if not isinstance(raw, dict):
+            typer.echo("defend.config.yaml must contain a YAML mapping at the top level", err=True)
+            raise typer.Exit(code=1)
+        payload = defend_config_dict_to_payload(raw)
+        typer.echo(encode_init_token(payload))
+        return
+
+    if token:
+        try:
+            payload = decode_init_token(token)
+        except InitTokenError as exc:
+            typer.echo(f"Invalid init token: {exc}", err=True)
+            raise typer.Exit(code=1)
+
+        cfg = payload_to_defend_config_dict(payload)
+
+        # Best-effort validation if server deps are present.
+        try:
+            from defend.api.config import DefendConfig  # type: ignore
+
+            DefendConfig.model_validate(cfg)
+        except Exception:
+            pass
+
+        try:
+            Path(out_path).write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
+        except Exception as exc:
+            typer.echo(f"Failed to write {out_path}: {exc}", err=True)
+            raise typer.Exit(code=1)
+
+        typer.echo(f"Wrote {out_path}")
+        return
+
+    # Interactive wizard
+    providers_raw = typer.prompt(
+        "Choose providers (comma-separated). Options: defend, openai, claude",
+        default="defend",
+    )
+    provider_set = set(p.strip().lower() for p in _csv_list(providers_raw))
+    provider_cfg = _select_provider_chain(provider_set)
+
+    models: dict[str, str] = {}
+    if "openai" in provider_set:
+        models["openai"] = typer.prompt("OpenAI model id", default="gpt-4.1-mini")
+    if "claude" in provider_set:
+        models["claude"] = typer.prompt("Claude model id", default="claude-3-5-sonnet-20241022")
+
+    llm_selected = bool(provider_set & {"openai", "claude"})
+    input_modules = _prompt_modules("input", allow_custom=llm_selected)
+    output_enabled = llm_selected and typer.confirm("Enable output guard?", default=True)
+    output_modules: list[Any] = []
+    output_provider = "claude"
+    if output_enabled:
+        output_provider = "openai" if "openai" in provider_set else "claude"
+        output_modules = _prompt_modules("output", allow_custom=True)
+
+    payload: Dict[str, Any] = {
+        "v": 1,
+        "providers": {
+            "primary": provider_cfg.get("primary", "defend"),
+            "fallback": provider_cfg.get("fallback"),
+        },
+        "models": models,
+        "modules": [],
+        "guards": {
+            "input": {"provider": provider_cfg.get("primary", "defend"), "modules": input_modules},
+            "output": {
+                "enabled": bool(output_enabled),
+                "provider": output_provider,
+                "modules": output_modules,
+                "on_fail": "block",
+            },
+            "session_ttl_seconds": 300,
+        },
+    }
+
+    token_out = encode_init_token(payload)
+    typer.echo("\nInit token:\n" + token_out + "\n")
+
+    cfg = payload_to_defend_config_dict(payload)
+    try:
+        Path(out_path).write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
+    except Exception as exc:
+        typer.echo(f"Failed to write {out_path}: {exc}", err=True)
+        raise typer.Exit(code=1)
+
+    typer.echo(f"Wrote {out_path}")

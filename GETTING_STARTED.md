@@ -25,6 +25,13 @@ The API expects a `defend.config.yaml` in the project root (the server loads it 
 defend serve
 ```
 
+If you want a quick setup from a shared token:
+
+```bash
+defend init --token "<defend_v1_...>"
+defend serve
+```
+
 Or run the ASGI app directly:
 
 ```bash
@@ -42,7 +49,8 @@ curl http://localhost:8000/v1/health
 The service reads config from `defend.config.yaml`. Minimal baseline:
 
 - Input uses the local **`defend`** provider.
-- Output uses an LLM provider (**`claude`** or **`openai`**); output cannot be configured to `defend` (startup validation rejects it).
+- Output uses an LLM provider (**`claude`** or **`openai`**) when enabled; output cannot be configured to `defend` (startup validation rejects it).
+- If you don't want output guarding, set `guards.output.enabled: false`.
 
 See `CONFIGURATION.md` for exact config fields and examples.
 

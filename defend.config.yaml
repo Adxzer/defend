@@ -111,6 +111,7 @@ guards:
   # Output guard is disabled by default. To enable, choose an LLM provider
   # and configure output modules.
   output:
+    enabled: false
     provider: claude
     modules: []
     on_fail: block

@@ -86,6 +86,17 @@ class ApiKeysConfig(BaseModel):
     openai_env: Optional[str] = None
 
 
+class ModelsConfig(BaseModel):
+    """
+    Optional provider model overrides.
+
+    When absent, providers use their built-in defaults.
+    """
+
+    claude: Optional[str] = None
+    openai: Optional[str] = None
+
+
 class ThresholdsConfig(BaseModel):
     block: float = 0.7
     flag: float = 0.3
@@ -118,6 +129,7 @@ class GuardsInputConfig(BaseModel):
 
 
 class GuardsOutputConfig(BaseModel):
+    enabled: bool = True
     provider: ProviderName = ProviderName.CLAUDE
     modules: List[Any] = Field(default_factory=list)
     on_fail: GuardAction = GuardAction.BLOCK  # block | flag | retry_suggested
@@ -125,6 +137,10 @@ class GuardsOutputConfig(BaseModel):
     @field_validator("provider")
     @classmethod
     def validate_output_provider(cls, v: ProviderName) -> ProviderName:
+        # If output guard is disabled, keep provider validation permissive.
+        # (The route handler will short-circuit before hitting the provider.)
+        #
+        # We still keep the enum type for consistent config shape.
         if v not in {ProviderName.CLAUDE, ProviderName.OPENAI}:
             raise ValueError("guards.output.provider must be 'claude', or 'openai'")
         return v
@@ -146,6 +162,7 @@ class GuardsConfig(BaseModel):
 class DefendConfig(BaseModel):
     provider: ProviderConfig
     api_keys: ApiKeysConfig = ApiKeysConfig()
+    models: ModelsConfig = ModelsConfig()
     modules: Optional[list[Any]] = None
     thresholds: ThresholdsConfig = ThresholdsConfig()
     confidence_threshold: float = 0.7

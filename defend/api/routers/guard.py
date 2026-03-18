@@ -97,6 +97,22 @@ async def guard_output(request: GuardOutputRequest) -> JSONResponse:
     input_context = None
     context_flag: GuardContext = GuardContext.NONE
 
+    # Allow explicit disabling of output guarding (useful for defend-only setups).
+    if getattr(config.guards.output, "enabled", True) is False:
+        session_id = request.session_id or f"def-{uuid.uuid4().hex[:8]}"
+        result = GuardResult(
+            action=GuardAction.PASS,
+            session_id=session_id,
+            decided_by="disabled",
+            direction="output",
+            score=None,
+            reason=None,
+            modules_triggered=[],
+            context=GuardContext.NONE,
+            latency_ms=0,
+        )
+        return JSONResponse(content=_sanitize_finite(result.model_dump()))
+
     if request.session_id:
         input_context = await store.get_input_context(request.session_id)
         if input_context:

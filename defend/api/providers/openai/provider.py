@@ -7,7 +7,7 @@ from typing import Optional
 import anyio
 from openai import APIStatusError, OpenAI
 
-from ...config import get_settings
+from ...config import get_defend_config, get_settings
 from ..base import BaseProvider, ProviderResult, ProviderUnavailableError
 from ...modules.base import BaseModule
 
@@ -42,8 +42,7 @@ class OpenAIProvider(BaseProvider):
     def __init__(self) -> None:
         # Settings currently unused; keep init lightweight.
         self._client: Optional[OpenAI] = None
-        # Model choice can be made configurable later; hard-code for now.
-        self._model = "gpt-4.1-mini"
+        self._default_model = "gpt-4.1-mini"
         self._api_key_env = "OPENAI_API_KEY"
 
     async def evaluate(
@@ -53,6 +52,9 @@ class OpenAIProvider(BaseProvider):
         modules: list[BaseModule] | None = None,
     ) -> ProviderResult:
         start = time.perf_counter()
+
+        cfg = get_defend_config()
+        model = (getattr(cfg, "models", None) and getattr(cfg.models, "openai", None)) or self._default_model
 
         module_instructions = ""
         if modules:
@@ -73,7 +75,7 @@ class OpenAIProvider(BaseProvider):
 
             def _call_openai() -> object:
                 return self._client.chat.completions.create(
-                    model=self._model,
+                    model=model,
                     response_format={"type": "json_object"},
                     messages=[
                         {"role": "system", "content": EVAL_SYSTEM_PROMPT.format(module_instructions=module_instructions)},

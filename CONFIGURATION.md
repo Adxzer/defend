@@ -39,6 +39,16 @@ api_keys:
   openai_env: OPENAI_API_KEY
 ```
 
+## Provider model overrides
+
+Claude/OpenAI providers have built-in defaults, but you can override the model IDs:
+
+```yaml
+models:
+  claude: "claude-3-5-sonnet-20241022"
+  openai: "gpt-4.1-mini"
+```
+
 ## Modules
 
 Top-level modules are provider-layer (input-oriented) modules used when an LLM provider is in play:
@@ -87,6 +97,7 @@ guards:
     modules: []
 
   output:
+    enabled: true
     provider: claude   # must be claude or openai
     modules: []
     on_fail: block     # block | flag | retry_suggested
@@ -97,7 +108,22 @@ guards:
 Key behaviors:
 
 - `guards.output.provider` is validated to **only** allow `claude` or `openai` (startup fails otherwise).
+- If `guards.output.enabled: false`, `/v1/guard/output` short-circuits to `action: pass` (useful for defend-only setups).
 - `session_ttl_seconds` controls how long input context is kept for `/v1/guard/output` lookups (in-memory, per-process).
+
+## Init token (CLI)
+
+You can generate a shareable compressed init token from an existing config:
+
+```bash
+defend init --from-config
+```
+
+And you can apply a token to write a new `defend.config.yaml`:
+
+```bash
+defend init --token "<defend_v1_...>"
+```
 
 ## Presets you can reason about
 

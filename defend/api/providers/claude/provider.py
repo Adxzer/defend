@@ -7,7 +7,7 @@ from typing import Optional
 import anyio
 from anthropic import APIStatusError, Anthropic
 
-from ...config import get_settings
+from ...config import get_defend_config, get_settings
 from ..base import BaseProvider, ProviderResult, ProviderUnavailableError
 from ...modules.base import BaseModule
 
@@ -42,8 +42,7 @@ class ClaudeProvider(BaseProvider):
     def __init__(self) -> None:
         # Settings currently unused; keep init lightweight.
         self._client: Optional[Anthropic] = None
-        # Model choice can be made configurable later; hard-code for now.
-        self._model = "claude-3-5-sonnet-20241022"
+        self._default_model = "claude-3-5-sonnet-20241022"
         self._api_key_env = "ANTHROPIC_API_KEY"
 
     async def evaluate(
@@ -54,6 +53,9 @@ class ClaudeProvider(BaseProvider):
     ) -> ProviderResult:
         # Note: anthropic SDK is sync; run in a worker thread to avoid blocking the event loop.
         start = time.perf_counter()
+
+        cfg = get_defend_config()
+        model = (getattr(cfg, "models", None) and getattr(cfg.models, "claude", None)) or self._default_model
 
         module_instructions = ""
         if modules:
@@ -75,7 +77,7 @@ class ClaudeProvider(BaseProvider):
 
             def _call_claude() -> object:
                 return self._client.messages.create(
-                    model=self._model,
+                    model=model,
                     max_tokens=512,
                     system=EVAL_SYSTEM_PROMPT.format(module_instructions=module_instructions),
                     messages=[

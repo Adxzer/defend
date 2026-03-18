@@ -1,5 +1,7 @@
 # Defend
 
+![Defend header](assets/header.png)
+
 **AI security guardrails for LLM applications.**
 
 - **Bidirectional**: guard both **input** (before your LLM call) and **output** (before you return text to users or tools).
