@@ -74,6 +74,10 @@ if out_res.blocked:
 
 ## Pipeline overview
 
+<p align="center">
+  <img src="assets/pipeline.jpg" alt="Defend pipeline overview: input guard → LLM → output guard" width="100%" />
+</p>
+
 ### Input guard
 
 ```text
