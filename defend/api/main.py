@@ -45,8 +45,8 @@ def create_app() -> FastAPI:
         # Provider orchestrator (L6)
         get_provider_orchestrator()
 
-        # Defend classifier only when configured as primary or fallback provider.
-        if defend_config.provider.primary == "defend" or defend_config.provider.fallback == "defend":
+        # Defend classifier only when configured as primary provider.
+        if defend_config.provider.primary == "defend":
             get_defend_classifier()
 
     @app.on_event("shutdown")

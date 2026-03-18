@@ -13,16 +13,7 @@ Config shape:
 ```yaml
 provider:
   primary: defend   # defend | claude | openai
-  fallback: null    # optional; see valid combinations below
-confidence_threshold: 0.7
 ```
-
-Valid combinations (enforced by config validation):
-
-- `primary: defend`, `fallback: claude|openai` → **confidence escalation** (local classify first; call LLM only when confidence < `confidence_threshold`)
-- `primary: claude|openai`, `fallback: defend` → **both-active gate** (run `defend` first; hard-block before calling LLM when `defend` blocks)
-- `primary: defend` with no fallback → local-only decision
-- `primary: claude|openai` with no fallback → LLM-only decision
 
 Notes:
 
@@ -139,25 +130,8 @@ guards:
     modules: []
 
   output:
+    enabled: false
     provider: claude
     modules: []
     on_fail: block
 ```
-
-Confidence escalation (pay only on low-confidence inputs):
-
-```yaml
-provider:
-  primary: defend
-  fallback: claude
-confidence_threshold: 0.7
-```
-
-Both-active gate (local hard-block before LLM):
-
-```yaml
-provider:
-  primary: claude
-  fallback: defend
-```
-

@@ -90,7 +90,7 @@ Input evaluation runs through:
 - **Normalization**: cleanup, Unicode fixes, whitespace, etc.
 - **Intent fast-pass**: quickly pass obviously benign text when enabled.
 - **Regex heuristics**: cheap pattern checks for known bad behavior.
-- **Semantic provider decision**: call the configured provider chain (`defend`, `claude`, `openai`, or a combo).
+- **Semantic provider decision**: call the configured provider (`defend`, `claude`, or `openai`).
 - **Session accumulation**: roll up risk across turns when you pass a `session_id`.
 
 ### Output guard
@@ -118,18 +118,12 @@ Available providers:
 - `**defend`**: local Qwen-based classifier (no external API calls). Input-oriented; ignores modules.
 - `**claude` / `openai**`: LLM-backed evaluation; required for output guarding and module-based evaluation.
 
-You choose a provider chain in `defend.config.yaml` (or via the web configurator):
+You choose a provider in `defend.config.yaml`:
 
 - **Local-only**:
   - `provider.primary: defend`
-- **Confidence escalation** (cheap first, pay on uncertainty):
-  - `provider.primary: defend`
-  - `provider.fallback: claude | openai`
-- **Both-active gate** (hard local block before LLM):
-  - `provider.primary: claude | openai`
-  - `provider.fallback: defend`
 
-Cost note: `defend` costs local compute; `claude`/`openai` calls cost tokens. Escalation/gating lets you control how often you pay for deep evaluation.
+Cost note: `defend` costs local compute; `claude`/`openai` calls cost tokens.
 
 See `CONFIGURATION.md` for concrete config examples.
 

@@ -25,7 +25,7 @@ Input evaluation runs a layered pipeline (`defend/api/pipeline/orchestrator.py`)
 - **Normalization**: text normalization and cleanup.
 - **Intent fast-pass**: short-circuit obviously benign inputs when enabled.
 - **Regex heuristics**: pattern-based risk signals.
-- **Provider decision**: a semantic decision via `defend`, `claude`, or `openai` (optionally chained).
+- **Provider decision**: a semantic decision via `defend`, `claude`, or `openai`.
 - **Session accumulation (when `session_id` is present)**: updates a rolling session score and can block once enough risky turns are observed.
 
 Session accumulation implementation details:
@@ -33,7 +33,7 @@ Session accumulation implementation details:
 - Rolling score uses exponential decay (`alpha = 0.7`) over prior state.
 - The gate is `SESSION_BLOCK_THRESHOLD` risky turns (default is `3` via settings).
 
-## Providers and chaining
+## Providers
 
 Providers are the L6 semantic decision engines (`defend/api/providers/`).
 
@@ -41,11 +41,6 @@ Implemented providers:
 
 - `defend`: local Qwen-based classifier (no external API calls). Input-oriented; does not support modules.
 - `claude` / `openai`: LLM-backed evaluation; supports modules and is required for output guarding.
-
-Provider chaining is implemented in `defend/api/providers/orchestrator.py`:
-
-- **Confidence escalation** (`primary: defend`, `fallback: claude|openai`): run local classify first; call the LLM provider only when confidence is below `confidence_threshold`.
-- **Both-active gate** (`primary: claude|openai`, `fallback: defend`): run `defend` first; hard-block before calling the LLM provider if it blocks.
 
 ## Modules
 

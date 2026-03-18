@@ -13,16 +13,9 @@
 #   - "defend"  : built-in Qwen-based classifier (input only, no modules)
 #   - "claude"  : Anthropic LLM provider (supports modules, input+output)
 #   - "openai"  : OpenAI LLM provider (supports modules, input+output)
-#
-# fallback:
-#   - Optional. When set to "defend" and primary is an LLM, the orchestrator
-#     runs defend first as a gate:
-#       - defend == block -> stop, do not call LLM
-#       - defend == pass  -> call LLM, use its decision
 #######################################################################
 provider:
   primary: defend          # default: defend-only classification
-  # fallback: defend       # optional; only valid when primary is claude/openai
 
 
 #######################################################################

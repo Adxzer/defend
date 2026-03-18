@@ -103,7 +103,6 @@ def payload_to_defend_config_dict(payload: Dict[str, Any]) -> Dict[str, Any]:
     cfg: Dict[str, Any] = {
         "provider": {
             "primary": (providers.get("primary") or "defend"),
-            "fallback": providers.get("fallback"),
         },
         "api_keys": {
             "anthropic_env": "ANTHROPIC_API_KEY",
@@ -118,10 +117,6 @@ def payload_to_defend_config_dict(payload: Dict[str, Any]) -> Dict[str, Any]:
             "session_ttl_seconds": int((guards.get("session_ttl_seconds") or 300)),
         },
     }
-
-    # Normalize null fallback to omission (YAML cleaner; config loader accepts either).
-    if cfg["provider"].get("fallback") in (None, "null"):
-        cfg["provider"].pop("fallback", None)
 
     if isinstance(models, dict) and models:
         cfg["models"] = {k: v for k, v in models.items() if isinstance(v, str) and v}
@@ -145,7 +140,6 @@ def defend_config_dict_to_payload(config_dict: Dict[str, Any]) -> Dict[str, Any]
         "v": 1,
         "providers": {
             "primary": provider.get("primary") or "defend",
-            "fallback": provider.get("fallback"),
         },
         "modules": config_dict.get("modules") or [],
         "thresholds": config_dict.get("thresholds") or {"block": 0.7, "flag": 0.3},

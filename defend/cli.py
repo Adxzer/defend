@@ -208,38 +208,20 @@ def _prompt_modules(direction: str, allow_custom: bool) -> list[Any]:
 
 def _select_provider_chain(selected: set[str]) -> dict[str, Any]:
     """
-    Map a multi-select of providers into the validated (primary,fallback) config shape.
+    Backwards compatibility shim for older versions.
+
+    Fallback/chaining has been removed; pick a single primary provider.
     """
-    allowed = {"defend", "openai", "claude"}
-    if not selected.issubset(allowed):
-        bad = ", ".join(sorted(selected - allowed))
-        raise typer.BadParameter(f"Unknown provider(s): {bad}")
-
-    if selected == {"defend"}:
+    if not selected:
         return {"primary": "defend"}
-
-    if selected == {"openai"}:
+    if len(selected) == 1:
+        return {"primary": next(iter(selected))}
+    # If multiple were provided, prefer defend if present, otherwise prefer openai.
+    if "defend" in selected:
+        return {"primary": "defend"}
+    if "openai" in selected:
         return {"primary": "openai"}
-    if selected == {"claude"}:
-        return {"primary": "claude"}
-
-    if selected == {"defend", "openai"}:
-        # default to confidence escalation: defend -> openai
-        return {"primary": "defend", "fallback": "openai"}
-    if selected == {"defend", "claude"}:
-        return {"primary": "defend", "fallback": "claude"}
-
-    if selected == {"openai", "defend"}:
-        return {"primary": "openai", "fallback": "defend"}
-    if selected == {"claude", "defend"}:
-        return {"primary": "claude", "fallback": "defend"}
-
-    # openai+claude (no defend) can't be represented as fallback per current validation.
-    primary = typer.prompt("Pick primary provider (openai or claude)", default="openai")
-    primary = primary.strip().lower()
-    if primary not in {"openai", "claude"}:
-        raise typer.BadParameter("Primary must be openai or claude")
-    return {"primary": primary}
+    return {"primary": "claude"}
 
 
 @app.command()
@@ -300,33 +282,29 @@ def init(
         return
 
     # Interactive wizard
-    providers_raw = typer.prompt(
-        "Choose providers (comma-separated). Options: defend, openai, claude",
-        default="defend",
-    )
-    provider_set = set(p.strip().lower() for p in _csv_list(providers_raw))
-    provider_cfg = _select_provider_chain(provider_set)
+    primary = typer.prompt("Choose primary provider (defend, openai, claude)", default="defend").strip().lower()
+    if primary not in {"defend", "openai", "claude"}:
+        raise typer.BadParameter("Primary provider must be one of: defend, openai, claude")
+    provider_cfg = {"primary": primary}
 
     models: dict[str, str] = {}
-    if "openai" in provider_set:
+    if primary == "openai":
         models["openai"] = typer.prompt("OpenAI model id", default="gpt-4.1-mini")
-    if "claude" in provider_set:
+    if primary == "claude":
         models["claude"] = typer.prompt("Claude model id", default="claude-3-5-sonnet-20241022")
 
-    llm_selected = bool(provider_set & {"openai", "claude"})
+    llm_selected = primary in {"openai", "claude"}
     input_modules = _prompt_modules("input", allow_custom=llm_selected)
     output_enabled = llm_selected and typer.confirm("Enable output guard?", default=True)
     output_modules: list[Any] = []
-    output_provider = "claude"
+    output_provider = "claude" if primary != "openai" else "openai"
     if output_enabled:
-        output_provider = "openai" if "openai" in provider_set else "claude"
         output_modules = _prompt_modules("output", allow_custom=True)
 
     payload: Dict[str, Any] = {
         "v": 1,
         "providers": {
             "primary": provider_cfg.get("primary", "defend"),
-            "fallback": provider_cfg.get("fallback"),
         },
         "models": models,
         "modules": [],

@@ -179,7 +179,7 @@ async def run_pipeline(text: str, session_id: Optional[str]) -> OrchestratorResu
 
     defend_diag: Optional[DefendDiagnostics] = None
     # Only compute defend model diagnostics when defend is configured in the provider chain.
-    if defend_config.provider.primary is ProviderName.DEFEND or defend_config.provider.fallback is ProviderName.DEFEND:
+    if defend_config.provider.primary is ProviderName.DEFEND:
         # Preserve existing defend diagnostics based on the underlying model behaviour.
         from ..models.defend_qwen import get_defend_classifier  # local import to avoid cycles
 

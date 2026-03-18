@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any, List, Optional
 
 import yaml
-from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .schemas import GuardAction, ProviderName
@@ -44,8 +44,9 @@ class Settings(BaseSettings):
 
 
 class ProviderConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     primary: ProviderName
-    fallback: Optional[ProviderName] = None
 
     @field_validator("primary")
     @classmethod
@@ -53,24 +54,6 @@ class ProviderConfig(BaseModel):
         if v not in {ProviderName.DEFEND, ProviderName.CLAUDE, ProviderName.OPENAI}:
             raise ValueError("provider.primary must be one of 'defend', 'claude', or 'openai'")
         return v
-
-    @field_validator("fallback")
-    @classmethod
-    def validate_fallback(cls, v: Optional[ProviderName], info: Any) -> Optional[ProviderName]:
-        if v is None:
-            return v
-        primary = info.data.get("primary")
-        if v is ProviderName.DEFEND:
-            if primary not in {ProviderName.CLAUDE, ProviderName.OPENAI}:
-                raise ValueError("provider.fallback='defend' is only valid when provider.primary is 'claude' or 'openai'")
-            return v
-        if v in {ProviderName.CLAUDE, ProviderName.OPENAI}:
-            if primary is not ProviderName.DEFEND:
-                raise ValueError(
-                    "provider.fallback='claude'/'openai' is only valid when provider.primary is 'defend' (confidence escalation)"
-                )
-            return v
-        raise ValueError("provider.fallback, when set, must be one of 'defend', 'claude', or 'openai'")
 
 
 class TopicModuleConfig(BaseModel):
