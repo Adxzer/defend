@@ -91,7 +91,7 @@ Output guard reviews the model output in context (using the same `session_id`) a
 
 ---
 
-## Provider & evaluation model
+## Evaluation model
 
 Defend always runs the same flow: input guard → your LLM → output guard.
 
