@@ -1,6 +1,6 @@
 # Defend
 
-![Defend header](assets/header.png)
+![Defend header](assets/header.jpg)
 
 **AI security guardrails for LLM applications.**
 
