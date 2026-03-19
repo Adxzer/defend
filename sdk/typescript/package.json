@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "description": "TypeScript SDK for Defend guardrail API.",
   "license": "Apache-2.0",
+  "homepage": "https://github.com/Adxzer/defend",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Adxzer/defend.git"
+  },
   "private": false,
   "type": "module",
   "main": "./dist/index.cjs",
