@@ -28,7 +28,7 @@
 ## Easy setup (HTTP-first)
 
 ```bash
-pip install "defend[server]"
+pip install "defend-api[server]"
 ```
 
 Create `defend.config.yaml` (minimal, verifiable):
@@ -116,7 +116,7 @@ if out_res.blocked:
 ### Use the TypeScript SDK
 
 ```ts
-import { DefendClient, isBlocked, toBlockedErrorPayload } from "@defend-ai/sdk";
+import { DefendClient, isBlocked, toBlockedErrorPayload } from "@defend-api/sdk";
 
 const guard = new DefendClient({
   apiKey: "dev",

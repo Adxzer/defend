@@ -10,12 +10,12 @@ This guide walks you through running the Defend API locally and using the HTTP A
 ## Install
 
 ```bash
-pip install defend
+pip install defend-api
 # optional (run the API locally + install FastAPI server deps):
-pip install "defend[server]"
+pip install "defend-api[server]"
 ```
 
-`defend` is the core Python SDK. `defend[server]` includes the FastAPI service dependencies. If you only want the client SDK, install `defend` without extras.
+`defend-api` is the core Python SDK. `defend-api[server]` includes the FastAPI service dependencies. If you only want the client SDK, install `defend-api` without extras.
 
 ## Run the API
 
@@ -163,7 +163,7 @@ if out_res.blocked:
 The TypeScript `DefendClient` is a thin HTTP wrapper for the same `/v1` API.
 
 ```ts
-import { DefendClient, isBlocked, toBlockedErrorPayload } from "@defend-ai/sdk";
+import { DefendClient, isBlocked, toBlockedErrorPayload } from "@defend-api/sdk";
 
 const guard = new DefendClient({ apiKey: "dev", baseUrl: "http://localhost:8000" });
 
