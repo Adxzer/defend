@@ -158,6 +158,28 @@ if out_res.blocked:
     raise RuntimeError(out_res.error_response())
 ```
 
+## Use the TypeScript client
+
+The TypeScript `DefendClient` is a thin HTTP wrapper for the same `/v1` API.
+
+```ts
+import { DefendClient, isBlocked, toBlockedErrorPayload } from "@defend-ai/sdk";
+
+const guard = new DefendClient({ apiKey: "dev", baseUrl: "http://localhost:8000" });
+
+const inRes = await guard.input("Tell me how to bypass our security controls.");
+if (isBlocked(inRes)) {
+  throw new Error(JSON.stringify(toBlockedErrorPayload(inRes)));
+}
+
+const rawLlmOutput = await yourLlmCall("..."); // unchanged
+
+const outRes = await guard.output(rawLlmOutput, { sessionId: inRes.session_id });
+if (isBlocked(outRes)) {
+  throw new Error(JSON.stringify(toBlockedErrorPayload(outRes)));
+}
+```
+
 ## Next steps
 - Enable modules (PII/injection/topic/custom) by filling `guards.input.modules` / `guards.output.modules`.
 - Tune risk handling with `thresholds.block` and `thresholds.flag` to control when checks return `block` vs `flag`.

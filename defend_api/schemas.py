@@ -152,9 +152,3 @@ class GuardResult(BaseModel):
         }
 
 
-class GuardResultVerbose(GuardResult):
-    is_injection: bool
-    final_action: FinalAction
-    layers: LayerDiagnostics
-
-
