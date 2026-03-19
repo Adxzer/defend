@@ -46,12 +46,12 @@ def serve(host: str = "0.0.0.0", port: int = 8000, log_level: str = "info") -> N
 
     # Import lazily so base `pip install defend` stays lightweight.
     try:
-        import defend.api.main  # type: ignore  # noqa: F401
+        import defend_api.main  # type: ignore  # noqa: F401
     except Exception as exc:  # pragma: no cover
         _require("server", exc)
 
-    # Use the unified `defend.api.main:app` entrypoint.
-    uvicorn.run("defend.api.main:app", host=host, port=port, log_level=log_level)
+    # Use the unified API entrypoint.
+    uvicorn.run("defend_api.main:app", host=host, port=port, log_level=log_level)
 
 
 @app.command()
@@ -266,7 +266,7 @@ def init(
 
         # Best-effort validation if server deps are present.
         try:
-            from defend.api.config import DefendConfig  # type: ignore
+            from defend_api.config import DefendConfig  # type: ignore
 
             DefendConfig.model_validate(cfg)
         except Exception:

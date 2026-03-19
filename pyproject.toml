@@ -49,6 +49,6 @@ all = [
 defend = "defend.cli:app"
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["defend*"]
+where = ["sdk/python", "."]
+include = ["defend*", "defend_api*"]
 

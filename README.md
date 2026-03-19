@@ -83,7 +83,7 @@ Handling semantics:
 - If `action == "flag"`: you decide (log, require user confirmation, rerun with safer prompt, etc.).
 - Always persist/forward `session_id` to link turns and enable multi-turn accumulation.
 
-For a fuller local runbook (health check, `uvicorn`, middleware, and more `curl` examples), see `GETTING_STARTED.md`.
+For a fuller local runbook (health check, `uvicorn`, and more `curl` examples), see `GETTING_STARTED.md`.
 
 ### Security & privacy (non-goals included)
 
