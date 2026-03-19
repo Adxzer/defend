@@ -19,7 +19,6 @@
 ## Quick links
 
 - [Getting started](GETTING_STARTED.md)
-- [TypeScript SDK](sdk/typescript/README.md)
 - [Modules](#modules)
 - [How it works](#how-it-works)
 - [Benchmarks](#benchmark-comparison)
