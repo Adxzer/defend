@@ -116,7 +116,7 @@ if out_res.blocked:
 ### Use the TypeScript SDK
 
 ```ts
-import { DefendClient, isBlocked, toBlockedErrorPayload } from "defendjs";
+import { DefendClient, isBlocked, toBlockedErrorPayload } from "defendts";
 
 const guard = new DefendClient({
   apiKey: "dev",

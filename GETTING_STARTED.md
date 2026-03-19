@@ -163,7 +163,7 @@ if out_res.blocked:
 The TypeScript `DefendClient` is a thin HTTP wrapper for the same `/v1` API.
 
 ```ts
-import { DefendClient, isBlocked, toBlockedErrorPayload } from "defendjs";
+import { DefendClient, isBlocked, toBlockedErrorPayload } from "defendts";
 
 const guard = new DefendClient({ apiKey: "dev", baseUrl: "http://localhost:8000" });
 
