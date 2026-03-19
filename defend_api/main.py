@@ -16,7 +16,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Defend API",
         description="Standalone Defend guardrail microservice.",
-        version="0.1.1",
+        version="0.1.2",
     )
 
     # v1 routes (current)
