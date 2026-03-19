@@ -1,8 +1,14 @@
+<p align="center">
+  <img src="assets/header.jpg" alt="Defend - AI security guardrails for LLM applications" width="100%" />
+</p>
 
+<p align="center"><strong>AI security guardrails for LLM applications</strong></p>
 
-**AI security guardrails for LLM applications**
-
-
+<p align="center">
+  <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License: Apache-2.0" />
+  <img src="https://img.shields.io/badge/python-3.12%2B-blue" alt="Python: 3.12+" />
+  <img src="https://img.shields.io/badge/docker-ready-blue" alt="Docker ready" />
+</p>
 
 - **Guards inputs and outputs**: checks user text before your LLM call and the LLM response before you return it to users/tools.
 - **Maintains conversation context**: link turns with `session_id` so risk can accumulate across a session.
@@ -128,7 +134,9 @@ if out_res.blocked:
 
 ## How it works
 
-
+<p align="center">
+  <img src="assets/pipeline.jpg" alt="Defend pipeline overview: input guard → LLM → output guard" width="100%" />
+</p>
 
 ### Input guard
 
