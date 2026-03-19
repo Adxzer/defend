@@ -23,7 +23,7 @@ app = typer.Typer(add_completion=False, help="Defend CLI")
 def _require(extra: str, exc: Exception) -> None:
     typer.echo(
         (
-            f"Missing optional dependency. Install with `pip install defend-api[{extra}]` "
+            f"Missing optional dependency. Install with `pip install pydefend[{extra}]` "
             f"or add the dependency to your environment.\n\nOriginal error: {exc}"
         ),
         err=True,
@@ -36,7 +36,7 @@ def serve(host: str = "0.0.0.0", port: int = 8000, log_level: str = "info") -> N
     """
     Start the Defend server (FastAPI) via uvicorn.
 
-    Requires `defend-api[server]` to be installed.
+    Requires `pydefend[server]` to be installed.
     """
 
     try:
@@ -44,7 +44,7 @@ def serve(host: str = "0.0.0.0", port: int = 8000, log_level: str = "info") -> N
     except Exception as exc:  # pragma: no cover
         _require("server", exc)
 
-    # Import lazily so base `pip install defend-api` stays lightweight.
+    # Import lazily so base `pip install pydefend` stays lightweight.
     try:
         import defend_api.main  # type: ignore  # noqa: F401
     except Exception as exc:  # pragma: no cover
@@ -103,7 +103,7 @@ def benchmark(
     """
     Run a small benchmark against the deepset/prompt-injections dataset.
 
-    Requires `defend-api[benchmark]` (and a running server).
+    Requires `pydefend[benchmark]` (and a running server).
     """
 
     try:

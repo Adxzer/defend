@@ -1,7 +1,7 @@
 """
 Defend Python SDK.
 
-Base install (`pip install defend-api`) provides:
+Base install (`pip install pydefend`) provides:
 - `Client` / `AsyncClient` for calling a running Defend server.
 """
 

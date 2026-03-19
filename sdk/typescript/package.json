@@ -1,5 +1,5 @@
 {
-  "name": "@defend-api/sdk",
+  "name": "defendjs",
   "version": "0.1.0",
   "description": "TypeScript SDK for Defend guardrail API.",
   "license": "Apache-2.0",

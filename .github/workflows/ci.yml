@@ -78,9 +78,53 @@ jobs:
         run: |
           pytest -q
 
-  publish-pypi:
+  validate-release:
     runs-on: ubuntu-latest
     needs: test
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate tag, Python version, and npm version
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import pathlib
+          import tomllib
+
+          tag = os.environ["GITHUB_REF_NAME"]
+          if not tag.startswith("v"):
+              raise SystemExit(f"Expected tag to start with 'v', got: {tag}")
+          tag_version = tag[1:]
+
+          pyproject = tomllib.loads(pathlib.Path("pyproject.toml").read_text(encoding="utf-8"))
+          python_version = pyproject["project"]["version"]
+
+          package_json = json.loads(pathlib.Path("sdk/typescript/package.json").read_text(encoding="utf-8"))
+          npm_version = package_json["version"]
+
+          errors = []
+          if python_version != tag_version:
+              errors.append(f"Python version mismatch: pyproject.toml={python_version}, tag={tag_version}")
+          if npm_version != tag_version:
+              errors.append(f"npm version mismatch: package.json={npm_version}, tag={tag_version}")
+
+          if errors:
+              raise SystemExit("\n".join(errors))
+
+          print(f"Release versions validated: tag={tag_version}, python={python_version}, npm={npm_version}")
+          PY
+
+  publish-pypi:
+    runs-on: ubuntu-latest
+    needs: [test, validate-release]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     permissions:
       id-token: write
@@ -105,7 +149,7 @@ jobs:
 
   publish-npm:
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, validate-release]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: read
