@@ -117,18 +117,13 @@ if out_res.blocked:
 
 ## Modules
 
+- `injection` (input only): Detect likely prompt-injection or instruction-override attempts in user text.
+- `prompt_leak` (output only): Detect system prompt or internal instruction exposure in model output.
+- `pii` / `pii_output`: Detect PII in user input and prevent PII leakage in model output.
+- `topic` / `topic_output`: Enforce topic boundaries on both user requests and model responses.
+- `custom` / `custom_output`: Add plain-language rules with `prompt:` for input and output checks.
 
-| Module          | Direction | One-line description                                                               |
-| --------------- | --------- | ---------------------------------------------------------------------------------- |
-| `injection`     | input     | Detect likely prompt-injection / instruction-override attempts in user text.       |
-| `pii`           | input     | Detect user-supplied PII in inbound text.                                          |
-| `topic`         | input     | Detect out-of-scope requests vs your configured allowed topics.                    |
-| `custom`        | input     | Detect whatever you describe in plain language (`prompt:` string).                 |
-| `prompt_leak`   | output    | Detect system prompt / internal instruction exposure in model output.              |
-| `pii_output`    | output    | Detect PII leaking in model output.                                                |
-| `topic_output`  | output    | Detect out-of-scope responses vs your configured allowed topics.                   |
-| `custom_output` | output    | Detect whatever you describe in plain language (`prompt:` string) in model output. |
-
+Use input modules under `guards.input.modules` and output modules under `guards.output.modules` in `defend.config.yaml`.
 
 ---
 
