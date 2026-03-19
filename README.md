@@ -97,9 +97,24 @@ Defend always runs the same flow: input guard → your LLM → output guard.
 
 For semantic evaluation, Defend can use:
 
-- `defend` (local): fast, offline input-only checks. 
+- `defend` ([local fine-tuned model](https://huggingface.co/Adaxer/defend)): fast, offline input-only checks. 
 - `claude` / `openai` (LLM): stronger evaluation; required for output guarding and module-based checks.
 
 In `defend.config.yaml`, you select which provider to use for input evaluation, and (when output guarding is enabled) which LLM provider to use for output evaluation. `claude/openai` calls consume API tokens.
 
 For a minimal working setup, see `GETTING_STARTED.md`.
+
+### Benchmark comparison
+
+Using the local `defend` pipeline, Defend ranks among the highest-performing models on [GenTel-Bench](https://gentellab.github.io/gentel-safe.github.io/).
+
+| Model | Accuracy | Precision | Recall | F1 |
+| --- | ---: | ---: | ---: | ---: |
+| **Defend (this repo)** | **95.96** | **94.83** | **97.10** | **95.94** |
+| GenTel-Shield | 97.45 | 98.97 | 95.98 | 97.44 |
+| ProtectAI | 91.55 | 99.72 | 83.56 | 90.88 |
+| Lakera AI | 85.96 | 91.27 | 79.51 | 84.11 |
+| Prompt Guard| 50.59 | 50.59 | 98.96 | 66.95 |
+| Deepset| 63.63 | 58.54 | 98.36 | 73.39 |
+
+The model was evaluated on a representative subset of jailbreak, goal-hijacking, and prompt-leaking attack scenarios.
