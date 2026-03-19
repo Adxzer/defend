@@ -3,9 +3,6 @@ __pycache__/
 *.pyo
 *.pyd
 .Python
-sdk/typescript/dist/
-sdk/typescript/package-lock.json
-sdk/typescript/node_modules/
 env/
 venv/
 .venv/

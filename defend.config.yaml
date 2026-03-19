@@ -3,7 +3,7 @@
 #
 # This file is both the default config and the reference for all options.
 # Every key is documented in comments. Values here apply to the local
-# microservice; client SDKs can override some settings per-request.
+# microservice.
 #######################################################################
 
 #######################################################################

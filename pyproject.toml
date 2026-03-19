@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "pydefend"
 version = "0.1.2"
 description = "AI security guardrails for LLM applications."
-readme = "sdk/python/README.md"
+readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "Apache-2.0" }
 authors = [
@@ -17,15 +17,6 @@ dependencies = [
   "pydantic>=2.9",
   "pyyaml>=6.0",
   "typer>=0.12",
-]
-
-[project.urls]
-Homepage = "https://github.com/Adxzer/defend"
-Repository = "https://github.com/Adxzer/defend"
-
-[project.optional-dependencies]
-# Full server dependencies (intentionally heavy).
-server = [
   "fastapi>=0.115",
   "uvicorn[standard]>=0.30",
   "prometheus-fastapi-instrumentator>=7.0",
@@ -39,6 +30,11 @@ server = [
   "sentence-transformers>=3.2",
 ]
 
+[project.urls]
+Homepage = "https://github.com/Adxzer/defend"
+Repository = "https://github.com/Adxzer/defend"
+
+[project.optional-dependencies]
 benchmark = [
   "datasets>=2.20",
   "scikit-learn>=1.5",
@@ -46,13 +42,13 @@ benchmark = [
 ]
 
 all = [
-  "pydefend[server,benchmark]",
+  "pydefend[benchmark]",
 ]
 
 [project.scripts]
 defend = "defend.cli:app"
 
 [tool.setuptools.packages.find]
-where = ["sdk/python", "."]
+where = ["."]
 include = ["defend*", "defend_api*"]
 

@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide walks you through running the Defend API locally and using the HTTP API (the stable contract). The Python client is a thin wrapper over the same `/v1` endpoints.
+This guide walks you through running the Defend API locally and using the HTTP API (the stable contract).
 
 ## Prerequisites
 
@@ -11,11 +11,9 @@ This guide walks you through running the Defend API locally and using the HTTP A
 
 ```bash
 pip install pydefend
-# optional (run the API locally + install FastAPI server deps):
-pip install "pydefend[server]"
 ```
 
-`pydefend` is the core Python SDK. `pydefend[server]` includes the FastAPI service dependencies. If you only want the client SDK, install `pydefend` without extras.
+`pydefend` installs the API package and CLI, including server dependencies for running `defend serve`.
 
 ## Run the API
 
@@ -137,48 +135,6 @@ curl -X POST http://localhost:8000/v1/guard/output \
 ```
 
 If `action == "block"`, do not return the model output verbatim. Typical patterns are: retry with a safer prompt, or return a fixed fallback.
-
-## Use the Python client
-
-The Python `Client` is a thin HTTP wrapper for the `/v1` API.
-
-```python
-from defend import Client
-
-guard = Client(api_key="dev", base_url="http://localhost:8000")
-
-in_res = guard.input("Tell me how to bypass our security controls.")
-if in_res.blocked:
-    raise RuntimeError(in_res.error_response())
-
-raw_llm_output = your_llm_call("...")  # unchanged
-
-out_res = guard.output(raw_llm_output, session_id=in_res.session_id)
-if out_res.blocked:
-    raise RuntimeError(out_res.error_response())
-```
-
-## Use the TypeScript client
-
-The TypeScript `DefendClient` is a thin HTTP wrapper for the same `/v1` API.
-
-```ts
-import { DefendClient, isBlocked, toBlockedErrorPayload } from "defendts";
-
-const guard = new DefendClient({ apiKey: "dev", baseUrl: "http://localhost:8000" });
-
-const inRes = await guard.input("Tell me how to bypass our security controls.");
-if (isBlocked(inRes)) {
-  throw new Error(JSON.stringify(toBlockedErrorPayload(inRes)));
-}
-
-const rawLlmOutput = await yourLlmCall("..."); // unchanged
-
-const outRes = await guard.output(rawLlmOutput, { sessionId: inRes.session_id });
-if (isBlocked(outRes)) {
-  throw new Error(JSON.stringify(toBlockedErrorPayload(outRes)));
-}
-```
 
 ## Next steps
 - Enable modules (PII/injection/topic/custom) by filling `guards.input.modules` / `guards.output.modules`.

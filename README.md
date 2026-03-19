@@ -28,7 +28,7 @@
 ## Easy setup (HTTP-first)
 
 ```bash
-pip install "pydefend[server]"
+pip install pydefend
 ```
 
 Create `defend.config.yaml` (minimal, verifiable):
@@ -89,54 +89,6 @@ For a fuller local runbook (health check, `uvicorn`, and more `curl` examples), 
 
 - Defend helps **detect** common LLM risks (prompt injection, prompt leaks, PII, out-of-scope content) but cannot make strong guarantees against all attacks or model failures.
 - If you enable output guarding with `claude`/`openai`, your guarded text may be sent to that provider for evaluation. Avoid sending secrets you can’t disclose; scrub or minimize sensitive context before calling external providers.
-
-### Use the Python SDK
-
-```python
-from defend import Client
-
-guard = Client(
-    api_key="dev",
-    base_url="http://localhost:8000",  # client normalizes to /v1 automatically
-)
-
-user_text = "Tell me how to bypass our security controls."
-
-in_res = guard.input(user_text)
-if in_res.blocked:
-    raise RuntimeError(in_res.error_response())
-
-raw_llm_output = your_llm_call(user_text)  # your LLM provider, unchanged
-
-out_res = guard.output(raw_llm_output, session_id=in_res.session_id)
-if out_res.blocked:
-    raise RuntimeError(out_res.error_response())
-```
-
-### Use the TypeScript SDK
-
-```ts
-import { DefendClient, isBlocked, toBlockedErrorPayload } from "defendts";
-
-const guard = new DefendClient({
-  apiKey: "dev",
-  baseUrl: "http://localhost:8000", // client normalizes to /v1 automatically
-});
-
-const userText = "Tell me how to bypass our security controls.";
-
-const inRes = await guard.input(userText);
-if (isBlocked(inRes)) {
-  throw new Error(JSON.stringify(toBlockedErrorPayload(inRes)));
-}
-
-const rawLlmOutput = await yourLlmCall(userText); // your LLM provider, unchanged
-
-const outRes = await guard.output(rawLlmOutput, { sessionId: inRes.session_id });
-if (isBlocked(outRes)) {
-  throw new Error(JSON.stringify(toBlockedErrorPayload(outRes)));
-}
-```
 
 ---
 
