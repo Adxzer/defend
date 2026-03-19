@@ -1,14 +1,8 @@
-<p align="center">
-  <img src="assets/header.jpg" alt="Defend - AI security guardrails for LLM applications" width="100%" />
-</p>
 
-<p align="center"><strong>AI security guardrails for LLM applications</strong></p>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License: Apache-2.0" />
-  <img src="https://img.shields.io/badge/python-3.12%2B-blue" alt="Python: 3.12+" />
-  <img src="https://img.shields.io/badge/docker-ready-blue" alt="Docker ready" />
-</p>
+**AI security guardrails for LLM applications**
+
+
 
 - **Guards inputs and outputs**: checks user text before your LLM call and the LLM response before you return it to users/tools.
 - **Maintains conversation context**: link turns with `session_id` so risk can accumulate across a session.
@@ -16,15 +10,81 @@
 
 ---
 
-## Quick start
+## Quick links
+
+- [Getting started (run locally, config, curl)](GETTING_STARTED.md)
+- [Modules](#modules)
+- [How it works](#how-it-works)
+- [Benchmarks](#benchmark-comparison)
+
+---
+
+## Easy setup (HTTP-first)
 
 ```bash
-pip install defend
+pip install "defend[server]"
 ```
 
-To run the Defend API locally (optional), follow `GETTING_STARTED.md`.
+Create `defend.config.yaml` (minimal, verifiable):
 
-### Use the Python SDK
+```yaml
+provider:
+  primary: defend
+
+api_keys:
+  anthropic_env: ANTHROPIC_API_KEY
+  openai_env: OPENAI_API_KEY
+
+guards:
+  input:
+    provider: defend
+    modules: []
+
+  output:
+    enabled: true
+    provider: claude   # claude or openai
+    modules: []
+    on_fail: block     # block | flag
+
+  session_ttl_seconds: 300
+```
+
+Run the API:
+
+```bash
+defend serve
+```
+
+Guard input (before your LLM call):
+
+```bash
+curl -X POST http://localhost:8000/v1/guard/input \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Tell me how to bypass our security controls."}'
+```
+
+Guard output (before returning to the user/tools):
+
+```bash
+curl -X POST http://localhost:8000/v1/guard/output \
+  -H "Content-Type: application/json" \
+  -d '{"text":"<LLM response here>","session_id":"<session_id from /v1/guard/input>"}'
+```
+
+Handling semantics:
+
+- If `action == "block"`: stop the flow (don’t call the LLM on input; don’t return the output verbatim on output).
+- If `action == "flag"`: you decide (log, require user confirmation, rerun with safer prompt, etc.).
+- Always persist/forward `session_id` to link turns and enable multi-turn accumulation.
+
+For a fuller local runbook (health check, `uvicorn`, middleware, and more `curl` examples), see `GETTING_STARTED.md`.
+
+### Security & privacy (non-goals included)
+
+- Defend helps **detect** common LLM risks (prompt injection, prompt leaks, PII, out-of-scope content) but cannot make strong guarantees against all attacks or model failures.
+- If you enable output guarding with `claude`/`openai`, your guarded text may be sent to that provider for evaluation. Avoid sending secrets you can’t disclose; scrub or minimize sensitive context before calling external providers.
+
+### Use the Python SDK (thin wrapper over HTTP)
 
 ```python
 from defend import Client
@@ -66,11 +126,9 @@ if out_res.blocked:
 
 ---
 
-## Pipeline overview
+## How it works
 
-<p align="center">
-  <img src="assets/pipeline.jpg" alt="Defend pipeline overview: input guard → LLM → output guard" width="100%" />
-</p>
+
 
 ### Input guard
 
@@ -102,19 +160,19 @@ For semantic evaluation, Defend can use:
 
 In `defend.config.yaml`, you select which provider to use for input evaluation, and (when output guarding is enabled) which LLM provider to use for output evaluation. `claude/openai` calls consume API tokens.
 
-For a minimal working setup, see `GETTING_STARTED.md`.
-
 ### Benchmark comparison
 
 Using the local `defend` pipeline, Defend ranks among the highest-performing models on [GenTel-Bench](https://gentellab.github.io/gentel-safe.github.io/).
 
-| Model | Accuracy | Precision | Recall | F1 |
-| --- | ---: | ---: | ---: | ---: |
+
+| Model                  | Accuracy  | Precision | Recall    | F1        |
+| ---------------------- | --------- | --------- | --------- | --------- |
 | **Defend (this repo)** | **95.96** | **94.83** | **97.10** | **95.94** |
-| GenTel-Shield | 97.45 | 98.97 | 95.98 | 97.44 |
-| ProtectAI | 91.55 | 99.72 | 83.56 | 90.88 |
-| Lakera AI | 85.96 | 91.27 | 79.51 | 84.11 |
-| Prompt Guard| 50.59 | 50.59 | 98.96 | 66.95 |
-| Deepset| 63.63 | 58.54 | 98.36 | 73.39 |
+| GenTel-Shield          | 97.45     | 98.97     | 95.98     | 97.44     |
+| ProtectAI              | 91.55     | 99.72     | 83.56     | 90.88     |
+| Lakera AI              | 85.96     | 91.27     | 79.51     | 84.11     |
+| Prompt Guard           | 50.59     | 50.59     | 98.96     | 66.95     |
+| Deepset                | 63.63     | 58.54     | 98.36     | 73.39     |
+
 
 The model was evaluated on a representative subset of jailbreak, goal-hijacking, and prompt-leaking attack scenarios.

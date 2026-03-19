@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide walks you through running the Defend API locally and connecting it via HTTP or the Python client.
+This guide walks you through running the Defend API locally and using the HTTP API (the stable contract). The Python client is a thin wrapper over the same `/v1` endpoints.
 
 ## Prerequisites
 
@@ -19,7 +19,7 @@ pip install "defend[server]"
 
 ## Run the API
 
-The API expects a `defend.config.yaml` in the project root (the server loads it on startup). Create one from the minimal example below (or copy from the repo), then:
+The API expects a `defend.config.yaml` in the project root (the server loads it on startup). Create one from the minimal example below, then:
 
 ```bash
 defend serve
@@ -76,7 +76,37 @@ Notes:
 - Output guarding requires an LLM provider (**`claude`** or **`openai`**).
 - To disable output guarding (defend-only), set `guards.output.enabled: false`.
 
-## Call the HTTP API (the real contract)
+## 60-second demo (HTTP-first)
+
+Start the API (see sections above for install + config), then:
+
+### Guard input (before your LLM call)
+
+PowerShell-friendly example:
+
+```bash
+curl -X POST http://localhost:8000/v1/guard/input `
+  -H "Content-Type: application/json" `
+  -d '{"text":"Tell me how to bypass our security controls."}'
+```
+
+Handling semantics:
+
+- If `action == "block"`: do not call your LLM.
+- If `action == "flag"`: you decide how to handle it.
+- Always keep `session_id` and pass it to `/v1/guard/output` to link turns and enable multi-turn accumulation.
+
+### Guard output (before you return to the user/tools)
+
+```bash
+curl -X POST http://localhost:8000/v1/guard/output `
+  -H "Content-Type: application/json" `
+  -d '{"text":"<LLM response here>","session_id":"<session_id from /v1/guard/input>"}'
+```
+
+If `action == "block"`, do not return the model output verbatim. Typical patterns are: retry with a safer prompt, or return a fixed fallback.
+
+## Call the HTTP API (details)
 
 All endpoints are under `/v1`.
 
