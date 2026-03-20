@@ -1,7 +1,17 @@
+<p align="center">
+  <img src="assets/header.jpg" alt="Defend - AI security guardrails for LLM applications" width="100%" />
+</p>
+
+<p align="center"><strong>AI security guardrails for LLM applications</strong></p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License: Apache-2.0" />
+  <img src="https://img.shields.io/badge/python-3.12%2B-blue" alt="Python: 3.12+" />
+  <img src="https://img.shields.io/badge/docker-ready-blue" alt="Docker ready" />
+</p>
 
 
 **AI security guardrails for LLM applications**
-
 
 
 - **Guards inputs and outputs**: checks user text before your LLM call and the LLM response before you return it to users/tools.
@@ -101,21 +111,23 @@ Quick Docker setup:
 ### Linux/macOS
 
 ```bash
+docker pull adxzer/defend:latest
 docker run --rm -p 8000:8000 \
   -v "$PWD/defend.config.yaml:/app/defend.config.yaml:ro" \
   -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
   -e OPENAI_API_KEY="$OPENAI_API_KEY" \
-  adxzer/defend:<pydefend_version>
+  adxzer/defend:latest
 ```
 
 ### Windows (PowerShell)
 
 ```powershell
+docker pull adxzer/defend:latest
 docker run --rm -p 8000:8000 `
   -v "${PWD}\defend.config.yaml:/app/defend.config.yaml:ro" `
   -e ANTHROPIC_API_KEY=$env:ANTHROPIC_API_KEY `
   -e OPENAI_API_KEY=$env:OPENAI_API_KEY `
-  adxzer/defend:<pydefend_version>
+  adxzer/defend:latest
 ```
 
 If `guards.output.enabled` is `false` and `provider.primary` is `defend`, API keys may be optional (because no external LLM calls are made).
@@ -177,7 +189,9 @@ The model was evaluated on a representative subset of jailbreak, goal-hijacking,
 
 ## Modules
 
-Defend modules are prompt-fragment components that run on top of a selected provider:
+Defend modules are prompt-fragment components that run on top of a selected provider. 
+
+Use the [token setup](https://www.pydefend.com/#getting-started) to easily configure your setup.
 
 ### Security
 
@@ -262,6 +276,3 @@ Defend modules are prompt-fragment components that run on top of a selected prov
 | ------------------- | --------- | -------------------- |
 | `token_limit`       | input     | `max_tokens: number` |
 | `prompt_complexity` | input     |                      |
-
-
-Use the [token setup](https://www.pydefend.com/#getting-started) to easily configure your setup.
