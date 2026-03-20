@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    tags:
-      - "v*"
   pull_request:
     branches:
       - main
@@ -78,125 +76,31 @@ jobs:
         run: |
           pytest -q
 
-  validate-release:
+  pr-template-check:
+    name: PR Template Check
     runs-on: ubuntu-latest
-    needs: test
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'pull_request'
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Validate tag and Python version
+      - name: Validate required PR sections
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           python - <<'PY'
           import os
-          import pathlib
-          import tomllib
 
-          tag = os.environ["GITHUB_REF_NAME"]
-          if not tag.startswith("v"):
-              raise SystemExit(f"Expected tag to start with 'v', got: {tag}")
-          tag_version = tag[1:]
+          body = os.environ.get("PR_BODY") or ""
+          required_sections = [
+              "## Summary",
+              "## Motivation and context",
+              "## Testing",
+              "## Security considerations",
+              "## Checklist",
+          ]
 
-          pyproject = tomllib.loads(pathlib.Path("pyproject.toml").read_text(encoding="utf-8"))
-          python_version = pyproject["project"]["version"]
+          missing = [s for s in required_sections if s not in body]
+          if missing:
+              raise SystemExit("Missing required PR sections:\n" + "\n".join(missing))
 
-          errors = []
-          if python_version != tag_version:
-              errors.append(f"Python version mismatch: pyproject.toml={python_version}, tag={tag_version}")
-
-          if errors:
-              raise SystemExit("\n".join(errors))
-
-          print(f"Release version validated: tag={tag_version}, python={python_version}")
+          print("PR template checks passed")
           PY
-
-  publish-pypi:
-    runs-on: ubuntu-latest
-    needs: [test, validate-release]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Build package
-        run: |
-          python -m pip install --upgrade pip
-          pip install build
-          python -m build
-
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-
-  publish-docker:
-    runs-on: ubuntu-latest
-    needs: [test, validate-release]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Verify docker tag matches pydefend version
-        id: version
-        run: |
-          python - <<'PY'
-          import os
-          import pathlib
-          import tomllib
-
-          tag = os.environ["GITHUB_REF_NAME"]
-          if not tag.startswith("v"):
-              raise SystemExit(f"Expected tag to start with 'v', got: {tag}")
-          tag_version = tag[1:]
-
-          pyproject = tomllib.loads(pathlib.Path("pyproject.toml").read_text(encoding="utf-8"))
-          python_version = pyproject["project"]["version"]
-
-          if python_version != tag_version:
-              raise SystemExit(
-                  "Version mismatch: pyproject.toml="
-                  + python_version
-                  + ", tag="
-                  + tag_version
-              )
-
-          out_path = os.environ["GITHUB_OUTPUT"]
-          with open(out_path, "a", encoding="utf-8") as f:
-              f.write(f"version={tag_version}\n")
-
-          print(f"Docker version validated: {tag_version}")
-          PY
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: |
-            adxzer/defend:${{ steps.version.outputs.version }}
 
