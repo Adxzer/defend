@@ -92,6 +92,11 @@ For a fuller local runbook (health check, `uvicorn`, and more `curl` examples), 
 
 ---
 
+## Docker (optional)
+You can also run the API in a container (see `GETTING_STARTED.md` → `Run the API with Docker`).
+
+---
+
 ## Modules
 
 - `injection` (input only): Detect likely prompt-injection or instruction-override attempts in user text.

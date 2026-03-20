@@ -140,3 +140,38 @@ If `action == "block"`, do not return the model output verbatim. Typical pattern
 - Enable modules (PII/injection/topic/custom) by filling `guards.input.modules` / `guards.output.modules`.
 - Tune risk handling with `thresholds.block` and `thresholds.flag` to control when checks return `block` vs `flag`.
 
+## Run the API with Docker
+Docker runs the API using the root `Dockerfile` (it starts `uvicorn` on port `8000`).
+
+1. Create a `defend.config.yaml` in the project root.
+2. Build the image:
+
+```bash
+docker build -t defend-api:local .
+```
+
+3. Run the container (mount your `defend.config.yaml` and pass any required LLM keys):
+
+### Linux/macOS
+```bash
+docker run --rm -p 8000:8000 \
+  -v "$PWD/defend.config.yaml:/app/defend.config.yaml:ro" \
+  -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
+  -e OPENAI_API_KEY="$OPENAI_API_KEY" \
+  defend-api:local
+```
+
+### Windows (PowerShell)
+```powershell
+docker run --rm -p 8000:8000 `
+  -v "${PWD}\defend.config.yaml:/app/defend.config.yaml:ro" `
+  -e ANTHROPIC_API_KEY=$env:ANTHROPIC_API_KEY `
+  -e OPENAI_API_KEY=$env:OPENAI_API_KEY `
+  defend-api:local
+```
+
+Health check:
+```bash
+curl http://localhost:8000/v1/health
+```
+
