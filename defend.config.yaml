@@ -17,6 +17,16 @@
 provider:
   primary: defend          # default: defend-only classification
 
+#######################################################################
+# Provider model selection
+#
+# If unset, Defend falls back to provider defaults.
+# Defaults are set to cheaper models for typical guardrail workloads.
+#######################################################################
+models:
+  claude: "claude-3-5-haiku-latest"
+  openai: "gpt-4o-mini"
+
 
 #######################################################################
 # API keys

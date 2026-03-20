@@ -1,16 +1,19 @@
 from __future__ import annotations
 
+from typing import Any, Dict
+
 from ..base import BaseModule
+from ..fragments import build_system_prompt
 
 
-class CustomModule(BaseModule):
+class GuardModule(BaseModule):
     name = "custom"
     description = "Custom guard module driven entirely by a raw prompt string."
     direction = "input"
 
-    def __init__(self, prompt: str | None = None) -> None:
-        self._prompt = prompt or ""
+    def __init__(self, **kwargs: Any) -> None:
+        self._cfg: Dict[str, Any] = dict(kwargs)
 
     def system_prompt(self) -> str:
-        return self._prompt
+        return build_system_prompt(self.name, self._cfg)
 

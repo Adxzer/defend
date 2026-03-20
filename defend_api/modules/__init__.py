@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib
-import pkgutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Type
 
@@ -12,10 +11,11 @@ _loaded: bool = False
 
 
 def load_modules() -> None:
-    """Auto-discover module subpackages and register BaseModule subclasses.
+    """Auto-discover guard module subpackages and register BaseModule subclasses.
 
-    Loads both input modules (`module.py`) and output modules (`output_module.py`)
-    where present.
+    We scan the filesystem for directories containing either `module.py` (input/both)
+    and/or `output_module.py` (output/both) so module packages do not strictly need
+    an `__init__.py`.
     """
     global _loaded
     if _loaded:
@@ -24,20 +24,20 @@ def load_modules() -> None:
     modules_dir = Path(__file__).parent
     package = __name__
 
-    for module_info in pkgutil.iter_modules([str(modules_dir)]):
-        name = module_info.name
-        if name == "base":
-            continue
-        if not module_info.ispkg:
+    for child in modules_dir.iterdir():
+        if not child.is_dir():
             continue
 
-        # Input modules live in module.py; output modules live in output_module.py.
+        name = child.name
+        if name in {"base", "__pycache__"}:
+            continue
+
         for suffix in ("module", "output_module"):
-            module_path = f"{package}.{name}.{suffix}"
-            try:
-                module = importlib.import_module(module_path)
-            except ModuleNotFoundError:
+            if not (child / f"{suffix}.py").exists():
                 continue
+
+            module_path = f"{package}.{name}.{suffix}"
+            module = importlib.import_module(module_path)
 
             for attr_name in dir(module):
                 attr = getattr(module, attr_name)

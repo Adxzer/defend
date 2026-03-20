@@ -42,7 +42,8 @@ class OpenAIProvider(BaseProvider):
     def __init__(self) -> None:
         # Settings currently unused; keep init lightweight.
         self._client: Optional[OpenAI] = None
-        self._default_model = "gpt-4.1-mini"
+        # Default to a cheaper model unless overridden via `defend.config.yaml -> models.openai`.
+        self._default_model = "gpt-4o-mini"
         self._api_key_env = "OPENAI_API_KEY"
 
     async def evaluate(

@@ -37,6 +37,11 @@ Create `defend.config.yaml` (minimal, verifiable):
 provider:
   primary: defend
 
+models:
+  # Defaults to cheaper models when unset.
+  claude: "claude-3-5-haiku-latest"
+  openai: "gpt-4o-mini"
+
 api_keys:
   anthropic_env: ANTHROPIC_API_KEY
   openai_env: OPENAI_API_KEY

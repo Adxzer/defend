@@ -42,7 +42,8 @@ class ClaudeProvider(BaseProvider):
     def __init__(self) -> None:
         # Settings currently unused; keep init lightweight.
         self._client: Optional[Anthropic] = None
-        self._default_model = "claude-3-5-sonnet-20241022"
+        # Default to a cheaper model unless overridden via `defend.config.yaml -> models.claude`.
+        self._default_model = "claude-3-5-haiku-latest"
         self._api_key_env = "ANTHROPIC_API_KEY"
 
     async def evaluate(

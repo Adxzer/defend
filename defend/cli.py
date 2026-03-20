@@ -54,34 +54,73 @@ def _prompt_modules(direction: str, allow_custom: bool) -> list[Any]:
     if direction not in {"input", "output"}:
         raise typer.BadParameter("direction must be input or output")
 
-    if direction == "input":
-        builtin = ["injection", "pii", "topic"]
-        custom_name = "custom"
-    else:
-        builtin = ["prompt_leak", "pii_output", "topic_output"]
-        custom_name = "custom_output"
+    # Direction selection mirrors runtime:
+    # - input chain uses direction "input" or "both"
+    # - output chain uses direction "output" or "both"
+    allowed_dirs = {"input", "both"} if direction == "input" else {"output", "both"}
 
-    choices = ", ".join(builtin + ([custom_name] if allow_custom else []))
+    # Dynamically list modules from the repo registry so the CLI supports new modules.
+    try:
+        from defend_api.modules import get_active_modules  # type: ignore
+    except Exception as exc:  # pragma: no cover - defensive
+        raise typer.Exit(code=1) from exc
+
+    custom_name = "custom" if direction == "input" else "custom_output"
+
+    active = get_active_modules()
+    available = [
+        name
+        for name, cls in active.items()
+        if getattr(cls, "direction", "input") in allowed_dirs and (allow_custom or name != custom_name)
+    ]
+    available.sort()
+
+    preview = ", ".join(available[:20]) + (", ..." if len(available) > 20 else "")
     raw = typer.prompt(
-        f"Choose {direction} modules (comma-separated). Available: {choices}. Leave empty for none",
+        f"Choose {direction} modules (comma-separated). Available: {preview}. Leave empty for none",
         default="",
         show_default=False,
     )
     selected = set(_csv_list(raw))
 
-    out: list[Any] = []
-    for name in builtin:
-        if name in selected:
-            if name in {"topic", "topic_output"}:
-                topics_raw = typer.prompt("Allowed topics (comma-separated)", default="", show_default=False)
-                allowed_topics = _csv_list(topics_raw)
-                out.append({name: {"allowed_topics": allowed_topics}})
-            else:
-                out.append(name)
+    unknown = sorted([name for name in selected if name not in set(available)])
+    if unknown:
+        raise typer.BadParameter(f"Unknown {direction} module(s): {', '.join(unknown)}")
 
-    if allow_custom and custom_name in selected:
-        prompt = typer.prompt(f"{custom_name} prompt (plain language rule)")
-        out.append({custom_name: {"prompt": prompt}})
+    import yaml  # type: ignore
+
+    out: list[Any] = []
+    for name in sorted(selected):
+        # Convenience prompts for the two common modules that need structured inputs.
+        if name in {"topic", "topic_output"}:
+            topics_raw = typer.prompt("Allowed topics (comma-separated)", default="", show_default=False)
+            allowed_topics = _csv_list(topics_raw)
+            out.append({name: {"allowed_topics": allowed_topics}})
+            continue
+
+        if name in {"custom", "custom_output"}:
+            prompt = typer.prompt(f"{name} prompt (plain language rule)")
+            out.append({name: {"prompt": prompt}})
+            continue
+
+        # For all other modules, accept arbitrary YAML/JSON config mapping.
+        config_raw = typer.prompt(
+            f"Config for module '{name}' as YAML/JSON mapping (empty = none)",
+            default="",
+            show_default=False,
+        )
+        if not config_raw.strip():
+            out.append(name)
+            continue
+
+        parsed = yaml.safe_load(config_raw)
+        if parsed is None or parsed == {}:
+            out.append(name)
+            continue
+        if not isinstance(parsed, dict):
+            raise typer.BadParameter(f"Config for '{name}' must parse to a YAML/JSON mapping/object.")
+
+        out.append({name: parsed})
 
     return out
 
@@ -147,17 +186,39 @@ def init(
         raise typer.BadParameter("Primary provider must be one of: defend, openai, claude")
 
     models: Dict[str, str] = {}
-    if primary == "openai":
-        models["openai"] = typer.prompt("OpenAI model id", default="gpt-4.1-mini")
-    if primary == "claude":
-        models["claude"] = typer.prompt("Claude model id", default="claude-3-5-sonnet-20241022")
 
     llm_selected = primary in {"openai", "claude"}
-    input_modules = _prompt_modules("input", allow_custom=llm_selected)
-    output_enabled = llm_selected and typer.confirm("Enable output guard?", default=True)
+    input_modules: list[Any] = []
+    if llm_selected:
+        if primary == "openai":
+            models["openai"] = typer.prompt("OpenAI model id", default="gpt-4o-mini")
+        if primary == "claude":
+            models["claude"] = typer.prompt("Claude model id", default="claude-3-5-haiku-latest")
+
+        input_modules = _prompt_modules("input", allow_custom=True)
+
+    output_enabled = typer.confirm("Enable output guard?", default=llm_selected)
     output_modules: list[Any] = []
-    output_provider = "claude" if primary != "openai" else "openai"
+    output_provider = "claude"
+
     if output_enabled:
+        output_provider = (
+            typer.prompt(
+                "Output guard provider (claude or openai)",
+                default=("openai" if primary == "openai" else "claude"),
+            )
+            .strip()
+            .lower()
+        )
+        if output_provider not in {"claude", "openai"}:
+            raise typer.BadParameter("Output guard provider must be 'claude' or 'openai'")
+
+        # Ensure we prompt for the model if this provider wasn't already selected as primary.
+        if output_provider == "openai" and "openai" not in models:
+            models["openai"] = typer.prompt("OpenAI model id", default="gpt-4o-mini")
+        if output_provider == "claude" and "claude" not in models:
+            models["claude"] = typer.prompt("Claude model id", default="claude-3-5-haiku-latest")
+
         output_modules = _prompt_modules("output", allow_custom=True)
 
     payload: Dict[str, Any] = {
@@ -166,7 +227,7 @@ def init(
             "primary": primary,
         },
         "models": models,
-        "modules": [],
+        "modules": input_modules,
         "guards": {
             "input": {"provider": primary, "modules": input_modules},
             "output": {
