@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import json
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -41,6 +43,15 @@ def serve(host: str = "0.0.0.0", port: int = 8000, log_level: str = "info") -> N
         import defend_api.main  # type: ignore  # noqa: F401
     except Exception as exc:  # pragma: no cover
         _require(exc)
+
+    config_path = Path("defend.config.yaml")
+    if not config_path.exists():
+        typer.echo(
+            "Missing `defend.config.yaml` in the project root.\n"
+            "Run `defend init` to generate it.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
 
     uvicorn.run("defend_api.main:app", host=host, port=port, log_level=log_level)
 
@@ -251,4 +262,108 @@ def init(
         raise typer.Exit(code=1)
 
     typer.echo(f"Wrote {out_path}")
+
+
+@app.command()
+def test(
+    text: Optional[str] = typer.Argument(
+        None,
+        help="Text to test. If neither --input nor --output is provided, this defaults to --input.",
+    ),
+    input_text: Optional[str] = typer.Option(
+        None,
+        "--input",
+        help="Run the input guard on this text.",
+    ),
+    output_text: Optional[str] = typer.Option(
+        None,
+        "--output",
+        help="Run the output guard on this text.",
+    ),
+    session_id: Optional[str] = typer.Option(
+        None,
+        "--session-id",
+        help="Optional session_id to link input and output guards.",
+    ),
+    pretty: bool = typer.Option(
+        True,
+        "--pretty/--no-pretty",
+        help="Pretty-print JSON output.",
+    ),
+) -> None:
+    """
+    Test guard input/output via the CLI.
+
+    Examples:
+      defend test "Tell me how to bypass controls."
+      defend test --input "..."
+      defend test --output "LLM response" --session-id def-...
+    """
+    if text is not None and (input_text is not None or output_text is not None):
+        raise typer.BadParameter("Provide either positional TEXT or --input/--output (not both).")
+
+    if input_text is None and output_text is None:
+        if text is None:
+            raise typer.BadParameter('Provide TEXT or one of `--input` / `--output`.')
+        input_text = text
+
+    if input_text is not None and output_text is not None:
+        # Full chain in one run.
+        async def _run_both() -> tuple[dict[str, Any], dict[str, Any]]:
+            from defend_api.routers.guard import guard_input, guard_output
+            from defend_api.schemas import GuardInputRequest, GuardOutputRequest
+
+            in_req = GuardInputRequest(text=input_text, session_id=session_id)
+            in_resp = await guard_input(in_req)
+            in_payload: dict[str, Any] = json.loads(in_resp.body.decode("utf-8"))
+            linked_session_id = in_payload.get("session_id") or session_id
+
+            out_req = GuardOutputRequest(text=output_text, session_id=linked_session_id)
+            out_resp = await guard_output(out_req)
+            out_payload: dict[str, Any] = json.loads(out_resp.body.decode("utf-8"))
+            return in_payload, out_payload
+
+        try:
+            in_result, out_result = asyncio.run(_run_both())
+        except KeyboardInterrupt:  # pragma: no cover
+            raise typer.Exit(code=130)
+        except Exception as exc:
+            typer.echo(f"Test failed: {exc}", err=True)
+            raise typer.Exit(code=1)
+
+        if pretty:
+            typer.echo("Input result:")
+            typer.echo(json.dumps(in_result, indent=2, ensure_ascii=False))
+            typer.echo("\nOutput result:")
+            typer.echo(json.dumps(out_result, indent=2, ensure_ascii=False))
+        else:
+            typer.echo("input_result=" + json.dumps(in_result, ensure_ascii=False))
+            typer.echo("output_result=" + json.dumps(out_result, ensure_ascii=False))
+        return
+
+    async def _run_one() -> dict[str, Any]:
+        from defend_api.routers.guard import guard_input, guard_output
+        from defend_api.schemas import GuardInputRequest, GuardOutputRequest
+
+        if input_text is not None:
+            req = GuardInputRequest(text=input_text, session_id=session_id)
+            resp = await guard_input(req)
+        else:
+            req = GuardOutputRequest(text=output_text or "", session_id=session_id)
+            resp = await guard_output(req)
+
+        return json.loads(resp.body.decode("utf-8"))
+
+    try:
+        result = asyncio.run(_run_one())
+    except KeyboardInterrupt:  # pragma: no cover
+        raise typer.Exit(code=130)
+    except Exception as exc:
+        typer.echo(f"Test failed: {exc}", err=True)
+        raise typer.Exit(code=1)
+
+    if pretty:
+        typer.echo(json.dumps(result, indent=2, ensure_ascii=False))
+    else:
+        typer.echo(json.dumps(result, ensure_ascii=False))
 

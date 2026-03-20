@@ -168,7 +168,7 @@ def get_settings() -> Settings:
 def get_defend_config() -> DefendConfig:
     config_path = Path("defend.config.yaml")
     if not config_path.exists():
-        raise ValueError("defend.config.yaml not found in project root")
+        raise ValueError("defend.config.yaml not found in project root. Run `defend init` to generate it.")
 
     raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
     try:
