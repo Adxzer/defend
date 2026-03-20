@@ -1,14 +1,8 @@
-<p align="center">
-  <img src="assets/header.jpg" alt="Defend - AI security guardrails for LLM applications" width="100%" />
-</p>
 
-<p align="center"><strong>AI security guardrails for LLM applications</strong></p>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License: Apache-2.0" />
-  <img src="https://img.shields.io/badge/python-3.12%2B-blue" alt="Python: 3.12+" />
-  <img src="https://img.shields.io/badge/docker-ready-blue" alt="Docker ready" />
-</p>
+**AI security guardrails for LLM applications**
+
+
 
 - **Guards inputs and outputs**: checks user text before your LLM call and the LLM response before you return it to users/tools.
 - **Maintains conversation context**: link turns with `session_id` so risk can accumulate across a session.
@@ -98,94 +92,39 @@ For a fuller local runbook (health check, `uvicorn`, and more `curl` examples), 
 ---
 
 ## Docker (optional)
-You can also run the API in a container (see `GETTING_STARTED.md` → `Run the API with Docker`).
 
----
+Quick Docker setup:
 
-## Modules
+1. Create `defend.config.yaml` in the project root.
+2. Mount it into the container and run `defend serve`.
 
-Defend modules are prompt-fragment components that run on top of a selected provider:
-- **Input modules** run before your LLM call and are configured under top-level `modules:`.
-- **Output modules** run on `/v1/guard/output` and are configured under `guards.output.modules:`.
+### Linux/macOS
 
-Config keys are **optional**.
+```bash
+docker run --rm -p 8000:8000 \
+  -v "$PWD/defend.config.yaml:/app/defend.config.yaml:ro" \
+  -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
+  -e OPENAI_API_KEY="$OPENAI_API_KEY" \
+  adxzer/defend:<pydefend_version>
+```
 
-### Security
-| Module | Direction | Config keys |
-|---|---|---|
-| `injection` | input |  |
-| `jailbreak` | input | |
-| `invisible_text` | input |  |
-| `indirect_injection` | input | `sources: list<string>` |
-| `secrets` | input |  |
-| `prompt_leak` | output |  |
-| `secrets_output` | output |  |
-| `malicious_url` | output |  |
-| `canary_token` | output |  |
-| `code_execution_output` | output | `dangerous_ops: list<string>` |
-| `tool_misuse` | output | `allowed_tools: list<string>`, `max_calls_per_turn: number` |
-| `excessive_agency` | output | `permission_scope: text`, `blocked_ops: list<string>` |
+### Windows (PowerShell)
 
-### Privacy
-| Module | Direction | Config keys |
-|---|---|---|
-| `pii` | input |  |
-| `pii_output` | output |  |
-| `financial_pii` | both |  |
-| `financial_pii_output` | output |  |
-| `health_pii` | both |  |
-| `health_pii_output` | output |  |
+```powershell
+docker run --rm -p 8000:8000 `
+  -v "${PWD}\defend.config.yaml:/app/defend.config.yaml:ro" `
+  -e ANTHROPIC_API_KEY=$env:ANTHROPIC_API_KEY `
+  -e OPENAI_API_KEY=$env:OPENAI_API_KEY `
+  adxzer/defend:<pydefend_version>
+```
 
-### Safety
-| Module | Direction | Config keys |
-|---|---|---|
-| `toxicity` | input | `categories: list<string>` |
-| `toxicity_output` | output | `categories: list<string>` |
-| `sensitive_topics` | input | `topics: list<string>` |
-| `bias_output` | output | `categories: list<string>` |
-
-### Policy
-| Module | Direction | Config keys |
-|---|---|---|
-| `topic` | input | `allowed_topics: list<string>` |
-| `topic_output` | output | `allowed_topics: list<string>` |
-| `language` | input | `allowed_languages: list<string>` |
-| `language_output` | output | `allowed_languages: list<string>` |
-| `ban_substrings` | input | `substrings: list<string>` |
-| `ban_code` | input | `languages: list<string>` |
-| `ban_competitors` | both | `competitors: list<string>` |
-| `ban_competitors_output` | output | `competitors: list<string>` |
-| `regex` | input | `patterns: list<string>` |
-| `regex_output` | output | `patterns: list<string>` |
-| `custom` | input | `prompt: text` |
-| `custom_output` | output | `prompt: text` |
-| `copyright_output` | output |  |
-
-### Quality
-| Module | Direction | Config keys |
-|---|---|---|
-| `hallucination_output` | output |  |
-| `relevance_output` | output |  |
-| `no_refusal_output` | output |  |
-| `schema_output` | output | `schema: json_object` |
-| `reading_grade_output` | output | `min_grade: number`, `max_grade: number` |
-| `sentiment` | both |  |
-
-### Reliability
-| Module | Direction | Config keys |
-|---|---|---|
-| `token_limit` | input | `max_tokens: number` |
-| `prompt_complexity` | input |  |
-
-Use the [token setup](http://localhost:3000/#getting-started) to easily configure your setup.
+If `guards.output.enabled` is `false` and `provider.primary` is `defend`, API keys may be optional (because no external LLM calls are made).
 
 ---
 
 ## How it works
 
-<p align="center">
-  <img src="assets/pipeline.jpg" alt="Defend pipeline overview: input guard → LLM → output guard" width="100%" />
-</p>
+
 
 ### Input guard
 
@@ -233,3 +172,96 @@ Using the local `defend` pipeline, Defend ranks among the highest-performing mod
 
 
 The model was evaluated on a representative subset of jailbreak, goal-hijacking, and prompt-leaking attack scenarios.
+
+---
+
+## Modules
+
+Defend modules are prompt-fragment components that run on top of a selected provider:
+
+### Security
+
+
+| Module                  | Direction | Config keys                                                 |
+| ----------------------- | --------- | ----------------------------------------------------------- |
+| `injection`             | input     |                                                             |
+| `jailbreak`             | input     |                                                             |
+| `invisible_text`        | input     |                                                             |
+| `indirect_injection`    | input     | `sources: list<string>`                                     |
+| `secrets`               | input     |                                                             |
+| `prompt_leak`           | output    |                                                             |
+| `secrets_output`        | output    |                                                             |
+| `malicious_url`         | output    |                                                             |
+| `canary_token`          | output    |                                                             |
+| `code_execution_output` | output    | `dangerous_ops: list<string>`                               |
+| `tool_misuse`           | output    | `allowed_tools: list<string>`, `max_calls_per_turn: number` |
+| `excessive_agency`      | output    | `permission_scope: text`, `blocked_ops: list<string>`       |
+
+
+### Privacy
+
+
+| Module                 | Direction | Config keys |
+| ---------------------- | --------- | ----------- |
+| `pii`                  | input     |             |
+| `pii_output`           | output    |             |
+| `financial_pii`        | both      |             |
+| `financial_pii_output` | output    |             |
+| `health_pii`           | both      |             |
+| `health_pii_output`    | output    |             |
+
+
+### Safety
+
+
+| Module             | Direction | Config keys                |
+| ------------------ | --------- | -------------------------- |
+| `toxicity`         | input     | `categories: list<string>` |
+| `toxicity_output`  | output    | `categories: list<string>` |
+| `sensitive_topics` | input     | `topics: list<string>`     |
+| `bias_output`      | output    | `categories: list<string>` |
+
+
+### Policy
+
+
+| Module                   | Direction | Config keys                       |
+| ------------------------ | --------- | --------------------------------- |
+| `topic`                  | input     | `allowed_topics: list<string>`    |
+| `topic_output`           | output    | `allowed_topics: list<string>`    |
+| `language`               | input     | `allowed_languages: list<string>` |
+| `language_output`        | output    | `allowed_languages: list<string>` |
+| `ban_substrings`         | input     | `substrings: list<string>`        |
+| `ban_code`               | input     | `languages: list<string>`         |
+| `ban_competitors`        | both      | `competitors: list<string>`       |
+| `ban_competitors_output` | output    | `competitors: list<string>`       |
+| `regex`                  | input     | `patterns: list<string>`          |
+| `regex_output`           | output    | `patterns: list<string>`          |
+| `custom`                 | input     | `prompt: text`                    |
+| `custom_output`          | output    | `prompt: text`                    |
+| `copyright_output`       | output    |                                   |
+
+
+### Quality
+
+
+| Module                 | Direction | Config keys                              |
+| ---------------------- | --------- | ---------------------------------------- |
+| `hallucination_output` | output    |                                          |
+| `relevance_output`     | output    |                                          |
+| `no_refusal_output`    | output    |                                          |
+| `schema_output`        | output    | `schema: json_object`                    |
+| `reading_grade_output` | output    | `min_grade: number`, `max_grade: number` |
+| `sentiment`            | both      |                                          |
+
+
+### Reliability
+
+
+| Module              | Direction | Config keys          |
+| ------------------- | --------- | -------------------- |
+| `token_limit`       | input     | `max_tokens: number` |
+| `prompt_complexity` | input     |                      |
+
+
+Use the [token setup](https://www.pydefend.com/#getting-started) to easily configure your setup.
