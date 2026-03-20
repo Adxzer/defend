@@ -10,10 +10,6 @@
   <img src="https://img.shields.io/badge/docker-ready-blue" alt="Docker ready" />
 </p>
 
-
-**AI security guardrails for LLM applications**
-
-
 - **Guards inputs and outputs**: checks user text before your LLM call and the LLM response before you return it to users/tools.
 - **Maintains conversation context**: link turns with `session_id` so risk can accumulate across a session.
 - **Configurable policies**: use built-in modules (PII/topic/injection) or define your own plain-language rules (`custom` / `custom_output`) via a `prompt:` string.
