@@ -22,14 +22,14 @@
 
 ## Quick links
 
-- [Getting started](GETTING_STARTED.md)
-- [Modules](#modules)
+- [Getting started](#easy-setup)
 - [How it works](#how-it-works)
 - [Benchmarks](#benchmark-comparison)
+- [Modules](#modules)
 
 ---
 
-## Easy setup (HTTP-first)
+## Easy setup
 
 ```bash
 pip install pydefend
