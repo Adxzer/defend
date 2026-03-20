@@ -130,13 +130,15 @@ docker run --rm -p 8000:8000 `
   adxzer/defend:latest
 ```
 
-If `guards.output.enabled` is `false` and `provider.primary` is `defend`, API keys may be optional (because no external LLM calls are made).
+If `guards.output.enabled` is `false` and `provider.primary` is `defend`, API keys are optional (because no external LLM calls are made).
 
 ---
 
 ## How it works
 
-
+<p align="center">
+  <img src="assets/pipeline.jpg" alt="Defend pipeline overview: input guard → LLM → output guard" width="100%" />
+</p>
 
 ### Input guard
 
