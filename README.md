@@ -104,13 +104,80 @@ You can also run the API in a container (see `GETTING_STARTED.md` → `Run the A
 
 ## Modules
 
-- `injection` (input only): Detect likely prompt-injection or instruction-override attempts in user text.
-- `prompt_leak` (output only): Detect system prompt or internal instruction exposure in model output.
-- `pii` / `pii_output`: Detect PII in user input and prevent PII leakage in model output.
-- `topic` / `topic_output`: Enforce topic boundaries on both user requests and model responses.
-- `custom` / `custom_output`: Add plain-language rules with `prompt:` for input and output checks.
+Defend modules are prompt-fragment components that run on top of a selected provider:
+- **Input modules** run before your LLM call and are configured under top-level `modules:`.
+- **Output modules** run on `/v1/guard/output` and are configured under `guards.output.modules:`.
 
-Use input modules under `guards.input.modules` and output modules under `guards.output.modules` in `defend.config.yaml`.
+Config keys are **optional**.
+
+### Security
+| Module | Direction | Config keys |
+|---|---|---|
+| `injection` | input |  |
+| `jailbreak` | input | |
+| `invisible_text` | input |  |
+| `indirect_injection` | input | `sources: list<string>` |
+| `secrets` | input |  |
+| `prompt_leak` | output |  |
+| `secrets_output` | output |  |
+| `malicious_url` | output |  |
+| `canary_token` | output |  |
+| `code_execution_output` | output | `dangerous_ops: list<string>` |
+| `tool_misuse` | output | `allowed_tools: list<string>`, `max_calls_per_turn: number` |
+| `excessive_agency` | output | `permission_scope: text`, `blocked_ops: list<string>` |
+
+### Privacy
+| Module | Direction | Config keys |
+|---|---|---|
+| `pii` | input |  |
+| `pii_output` | output |  |
+| `financial_pii` | both |  |
+| `financial_pii_output` | output |  |
+| `health_pii` | both |  |
+| `health_pii_output` | output |  |
+
+### Safety
+| Module | Direction | Config keys |
+|---|---|---|
+| `toxicity` | input | `categories: list<string>` |
+| `toxicity_output` | output | `categories: list<string>` |
+| `sensitive_topics` | input | `topics: list<string>` |
+| `bias_output` | output | `categories: list<string>` |
+
+### Policy
+| Module | Direction | Config keys |
+|---|---|---|
+| `topic` | input | `allowed_topics: list<string>` |
+| `topic_output` | output | `allowed_topics: list<string>` |
+| `language` | input | `allowed_languages: list<string>` |
+| `language_output` | output | `allowed_languages: list<string>` |
+| `ban_substrings` | input | `substrings: list<string>` |
+| `ban_code` | input | `languages: list<string>` |
+| `ban_competitors` | both | `competitors: list<string>` |
+| `ban_competitors_output` | output | `competitors: list<string>` |
+| `regex` | input | `patterns: list<string>` |
+| `regex_output` | output | `patterns: list<string>` |
+| `custom` | input | `prompt: text` |
+| `custom_output` | output | `prompt: text` |
+| `copyright_output` | output |  |
+
+### Quality
+| Module | Direction | Config keys |
+|---|---|---|
+| `hallucination_output` | output |  |
+| `relevance_output` | output |  |
+| `no_refusal_output` | output |  |
+| `schema_output` | output | `schema: json_object` |
+| `reading_grade_output` | output | `min_grade: number`, `max_grade: number` |
+| `sentiment` | both |  |
+
+### Reliability
+| Module | Direction | Config keys |
+|---|---|---|
+| `token_limit` | input | `max_tokens: number` |
+| `prompt_complexity` | input |  |
+
+Use the [token setup](http://localhost:3000/#getting-started) to easily configure your setup.
 
 ---
 
