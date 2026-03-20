@@ -144,10 +144,10 @@ If `action == "block"`, do not return the model output verbatim. Typical pattern
 Docker runs the API using the root `Dockerfile` (it starts `uvicorn` on port `8000`).
 
 1. Create a `defend.config.yaml` in the project root.
-2. Build the image:
+2. Pull the published image from Docker Hub:
 
 ```bash
-docker build -t defend-api:local .
+docker pull adxzer/defend:<pydefend_version>
 ```
 
 3. Run the container (mount your `defend.config.yaml` and pass any required LLM keys):
@@ -158,7 +158,7 @@ docker run --rm -p 8000:8000 \
   -v "$PWD/defend.config.yaml:/app/defend.config.yaml:ro" \
   -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
   -e OPENAI_API_KEY="$OPENAI_API_KEY" \
-  defend-api:local
+  adxzer/defend:<pydefend_version>
 ```
 
 ### Windows (PowerShell)
@@ -167,7 +167,7 @@ docker run --rm -p 8000:8000 `
   -v "${PWD}\defend.config.yaml:/app/defend.config.yaml:ro" `
   -e ANTHROPIC_API_KEY=$env:ANTHROPIC_API_KEY `
   -e OPENAI_API_KEY=$env:OPENAI_API_KEY `
-  defend-api:local
+  adxzer/defend:<pydefend_version>
 ```
 
 Health check:
